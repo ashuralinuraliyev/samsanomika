@@ -1,0 +1,1286 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>СамсаНомика · Точка безубыточности</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800;900&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;800&display=swap">
+<style>
+/* ===================== ТОКЕНЫ ===================== */
+:root{
+  --bg:#040912; --bg2:#08131f; --panel:rgba(12,32,46,.62); --line:rgba(80,240,255,.22);
+  --holo:#4ff3ff; --holo2:#9af9ff; --mag:#ff4fd8; --gold:#ffb547; --gold2:#ffd27f;
+  --ok:#6bff8f; --bad:#ff4d63; --ink:#e9fbff; --mute:#86a9b8;
+  --A:#ff4d63; --B:#3d8bff; --C:#ffb547; --D:#2ee59d;
+  --fd:"Unbounded","Arial Black",system-ui,sans-serif; --fb:"Manrope",system-ui,"Segoe UI",sans-serif; --fm:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--fb);-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+.mono{font-family:var(--fm)}
+.gold{color:var(--gold)} .holo{color:var(--holo)} .mag{color:var(--mag)} .ok{color:var(--ok)} .bad{color:var(--bad)} .mu{color:var(--mute)}
+[hidden]{display:none!important}
+
+/* ===================== ХОСТ: СЦЕНА 16:9 ===================== */
+#hostWrap{position:fixed;inset:0;overflow:hidden;background:radial-gradient(ellipse at 50% 120%,#0b2a3a 0%,var(--bg) 60%)}
+#stage{width:1600px;height:900px;position:absolute;left:50%;top:50%;transform-origin:center;overflow:hidden;background:
+  radial-gradient(circle at 20% 10%,rgba(79,243,255,.08),transparent 40%),
+  radial-gradient(circle at 85% 90%,rgba(255,79,216,.07),transparent 45%),var(--bg)}
+#stage::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:40;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
+#grid{position:absolute;inset:0;z-index:0;opacity:.5;pointer-events:none}
+#holo3d{position:absolute;z-index:2;pointer-events:none;transition:all 1.1s cubic-bezier(.7,0,.2,1)}
+#holo3d.big{left:880px;top:90px;width:680px;height:680px;opacity:1}
+#holo3d.corner{left:1400px;top:70px;width:180px;height:180px;opacity:.75}
+#holo3d.hide{left:1400px;top:70px;width:180px;height:180px;opacity:0}
+.H-top,.H-bot{position:absolute;left:0;right:0;z-index:30;display:flex;justify-content:space-between;align-items:center;padding:0 40px}
+.H-top{top:0;height:62px;font-size:15px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(4,9,18,.85),transparent)}
+.H-bot{bottom:0;height:72px;border-top:1px solid var(--line);background:linear-gradient(0deg,rgba(4,9,18,.92),rgba(4,9,18,.4))}
+.H-top .brand{font-family:var(--fd);font-weight:800;letter-spacing:.06em;font-size:15px}
+.H-top .brand b{color:var(--gold)}
+.live{color:var(--ok)} .demo{color:var(--gold)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:currentColor;margin-right:7px;animation:blink 1.2s steps(2) infinite}
+.H-bot .left{display:flex;align-items:center;gap:22px;font-family:var(--fm);font-size:15px;color:var(--mute)}
+.miniqr{display:flex;align-items:center;gap:10px;cursor:pointer}
+.miniqr .q{width:52px;height:52px;background:#fff;padding:3px;border-radius:6px}
+.miniqr .q img,.miniqr .q canvas{width:100%!important;height:100%!important}
+.ctrl{display:flex;gap:8px;align-items:center}
+.ctrl button{height:44px;min-width:44px;border-radius:12px;border:1px solid var(--line);background:rgba(79,243,255,.06);font-size:17px;padding:0 14px}
+.ctrl button:hover{border-color:var(--holo);box-shadow:0 0 18px rgba(79,243,255,.35)}
+.ctrl .next{background:linear-gradient(135deg,var(--holo),#2bb7ff);color:#001018;font-weight:800;border:0;padding:0 26px}
+.prog{position:absolute;left:0;bottom:72px;height:3px;background:linear-gradient(90deg,var(--holo),var(--mag));z-index:31;transition:width .6s}
+
+/* ===================== СЛАЙД ===================== */
+.slide{position:absolute;left:0;right:0;top:62px;bottom:72px;z-index:10;padding:46px 80px 30px;display:flex;flex-direction:column}
+.slide.enter{animation:holoIn 1s cubic-bezier(.2,.8,.2,1) both}
+.slide.enter::after{content:"";position:absolute;left:0;right:0;height:140px;top:-140px;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(79,243,255,.18),rgba(255,255,255,.35),transparent);animation:scanDown 1s ease-out forwards}
+@keyframes holoIn{0%{clip-path:inset(0 0 100% 0);filter:brightness(2.4) hue-rotate(40deg) blur(4px)}55%{clip-path:inset(0 0 0 0);filter:brightness(1.4) blur(1px)}62%{transform:translateX(6px) skewX(-2deg)}66%{transform:translateX(-4px)}72%{transform:none}100%{filter:none}}
+@keyframes scanDown{to{top:110%}}
+.eyebrow{font-family:var(--fm);font-size:17px;letter-spacing:.2em;color:var(--holo);text-transform:uppercase;display:flex;gap:14px;align-items:center}
+.eyebrow::before{content:"";width:34px;height:2px;background:var(--holo);box-shadow:0 0 10px var(--holo)}
+h1,h2,h3{font-family:var(--fd);margin:0;line-height:1.08;letter-spacing:-.01em;text-wrap:balance}
+.t1{font-size:84px;font-weight:900}
+.t2{font-size:54px;font-weight:800;margin-top:14px}
+.t3{font-size:32px;font-weight:700}
+.lead{font-size:27px;line-height:1.45;color:#cfe9f2;max-width:1100px}
+.glow{color:var(--holo);text-shadow:0 0 18px rgba(79,243,255,.75),0 0 46px rgba(79,243,255,.35)}
+.glowG{color:var(--gold);text-shadow:0 0 18px rgba(255,181,71,.7),0 0 46px rgba(255,181,71,.3)}
+.glitch{position:relative;display:inline-block}
+.glitch::before,.glitch::after{content:attr(data-t);position:absolute;inset:0;opacity:.7}
+.glitch::before{color:var(--mag);transform:translate(3px,0);clip-path:inset(0 0 60% 0);animation:gl1 2.6s infinite steps(1)}
+.glitch::after{color:var(--holo);transform:translate(-3px,0);clip-path:inset(55% 0 0 0);animation:gl2 3.1s infinite steps(1)}
+@keyframes gl1{0%,92%{transform:translate(0)}93%{transform:translate(5px,-2px)}96%{transform:translate(-4px,1px)}}
+@keyframes gl2{0%,88%{transform:translate(0)}90%{transform:translate(-6px,2px)}94%{transform:translate(3px,-1px)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:24px 28px;backdrop-filter:blur(6px);position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(120deg,transparent 40%,rgba(79,243,255,.12) 50%,transparent 60%);background-size:250% 100%;animation:sheen 5s linear infinite}
+@keyframes sheen{from{background-position:150% 0}to{background-position:-100% 0}}
+.row{display:flex;gap:26px} .col{display:flex;flex-direction:column;gap:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.big{font-family:var(--fd);font-weight:900;font-size:64px;line-height:1}
+.num{font-family:var(--fm);font-variant-numeric:tabular-nums}
+.tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--fm);font-size:15px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--holo)}
+.joke{font-size:24px;color:var(--gold2);border-left:4px solid var(--gold);padding:10px 18px;background:rgba(255,181,71,.07);border-radius:0 14px 14px 0}
+.formula{font-family:var(--fd);font-weight:800;font-size:56px;padding:26px 40px;border-radius:24px;border:1.5px solid var(--holo);background:rgba(79,243,255,.06);box-shadow:0 0 40px rgba(79,243,255,.2),inset 0 0 40px rgba(79,243,255,.08);display:inline-flex;align-items:center;gap:22px}
+.frac{display:inline-flex;flex-direction:column;align-items:center;font-size:.8em}
+.frac span:first-child{border-bottom:4px solid currentColor;padding:0 14px 6px}
+.frac span:last-child{padding-top:6px}
+/* reveal steps */
+[data-s]{opacity:0;transform:translateY(26px) scale(.98);filter:blur(10px);transition:opacity .7s,transform .7s cubic-bezier(.2,.9,.2,1.2),filter .7s}
+[data-s].on{opacity:1;transform:none;filter:none}
+.pop{animation:popIn .6s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes popIn{from{transform:scale(.6);opacity:0}}
+@keyframes blink{50%{opacity:.2}}
+@keyframes floaty{50%{transform:translateY(-12px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===================== ЛОББИ / QR ===================== */
+.qrbox{background:#fff;padding:16px;border-radius:22px;box-shadow:0 0 0 2px var(--holo),0 0 60px rgba(79,243,255,.45)}
+.qrbox img,.qrbox canvas{display:block}
+.room{font-family:var(--fd);font-weight:900;font-size:84px;letter-spacing:.12em}
+.bubbles{position:absolute;inset:0;pointer-events:none;z-index:5}
+.bub{position:absolute;padding:10px 18px 10px 12px;border-radius:999px;background:rgba(79,243,255,.1);border:1px solid var(--line);font-weight:700;font-size:20px;display:flex;gap:8px;align-items:center;animation:bubIn .9s cubic-bezier(.2,1.6,.4,1) both, floaty 4s ease-in-out infinite;white-space:nowrap}
+@keyframes bubIn{from{transform:scale(0) rotate(-20deg);opacity:0}}
+
+/* ===================== ВИКТОРИНА ===================== */
+.qopts{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:auto}
+.qopt{border-radius:20px;padding:22px 26px;font-size:28px;font-weight:700;display:flex;gap:18px;align-items:center;position:relative;overflow:hidden;min-height:110px;transition:all .5s}
+.qopt .L{font-family:var(--fd);font-weight:900;width:58px;height:58px;border-radius:14px;display:grid;place-items:center;background:rgba(0,0,0,.25);flex:none}
+.qopt .cnt{margin-left:auto;font-family:var(--fm);font-size:24px}
+.qopt .fill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.18);width:0;transition:width 1s}
+.qA{background:linear-gradient(135deg,#c2253b,var(--A))} .qB{background:linear-gradient(135deg,#1f5fd6,var(--B))} .qC{background:linear-gradient(135deg,#d88a1c,var(--C));color:#2a1600} .qD{background:linear-gradient(135deg,#17a872,var(--D));color:#00241a}
+.qopt.dim{opacity:.25;filter:grayscale(.7)}
+.qopt.right{box-shadow:0 0 0 4px #fff,0 0 50px rgba(255,255,255,.5);transform:scale(1.03)}
+.timer{position:absolute;right:80px;top:40px;width:130px;height:130px}
+.timer svg{transform:rotate(-90deg)}
+.timer .tv{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--fd);font-weight:900;font-size:46px}
+.answered{font-family:var(--fm);font-size:20px;color:var(--mute)}
+.top5{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+.top5 .p{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 16px;font-size:20px;font-weight:700}
+
+/* ===================== ГРАФИК ===================== */
+.chart text{font-family:var(--fm);fill:var(--mute);font-size:16px}
+.slider{display:grid;grid-template-columns:200px 1fr 170px;gap:16px;align-items:center;font-size:20px}
+.slider input{width:100%;accent-color:var(--holo)}
+.slider b{font-family:var(--fm);text-align:right}
+
+/* ===================== ИГРА ===================== */
+.locs{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.loc{border-radius:22px;padding:22px;border:1px solid var(--line);background:var(--panel)}
+.loc .ic{font-size:54px}
+.ev{display:flex;gap:16px;align-items:center;padding:9px 16px;border-radius:16px;background:var(--panel);border:1px solid var(--line);font-size:19px;line-height:1.25}
+.ev .e{font-size:34px}
+.ev .fx{margin-left:auto;font-family:var(--fm);font-size:15px;max-width:230px;white-space:normal;text-align:right;padding:6px 12px;border-radius:10px;background:rgba(0,0,0,.3);white-space:nowrap}
+.lb{display:flex;flex-direction:column;gap:8px}
+.lbr{display:grid;grid-template-columns:44px 1fr 120px 200px;gap:14px;align-items:center;padding:9px 16px;border-radius:14px;background:var(--panel);border:1px solid var(--line);font-size:21px;transition:transform .6s}
+.lbr .r{font-family:var(--fd);font-weight:900;color:var(--holo)}
+.lbr .v{font-family:var(--fm);text-align:right}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:26px;min-height:200px}
+.pod{width:260px;border-radius:22px 22px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:20px;gap:8px;position:relative;animation:rise 1.2s cubic-bezier(.2,.9,.2,1) both}
+.pod .nm{font-family:var(--fd);font-weight:800;font-size:24px;text-align:center;padding:0 10px}
+.pod .av{font-size:56px}
+.pod .pt{font-family:var(--fm);font-size:22px}
+.pod .pl{font-family:var(--fd);font-weight:900;font-size:70px;opacity:.35;margin-top:auto;padding-bottom:10px}
+@keyframes rise{from{transform:translateY(100%);opacity:0}}
+#confetti{position:absolute;inset:0;z-index:35;pointer-events:none}
+
+/* ===================== МОДАЛ QR ===================== */
+#bigqr{position:absolute;inset:0;z-index:50;background:rgba(2,6,12,.88);display:grid;place-items:center}
+
+/* ===================== ТЕЛЕФОН ===================== */
+#phone{position:fixed;inset:0;overflow-y:auto;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+  background:radial-gradient(circle at 50% -10%,#0d3446,var(--bg) 60%);display:flex;flex-direction:column;gap:16px}
+#phone .ph-top{display:flex;justify-content:space-between;align-items:center;font-family:var(--fm);font-size:13px;color:var(--mute)}
+#phone h2{font-size:24px} #phone h3{font-size:19px}
+.pcard{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.pin{width:100%;font:inherit;font-size:18px;color:var(--ink);background:rgba(0,0,0,.35);border:1.5px solid var(--line);border-radius:14px;padding:14px}
+.pin:focus{outline:none;border-color:var(--holo)}
+.pbtn{width:100%;border:0;border-radius:16px;padding:16px;font-size:18px;font-weight:800;background:linear-gradient(135deg,var(--holo),#2bb7ff);color:#001018}
+.pbtn:disabled{opacity:.45}
+.avs{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.avs button{font-size:28px;padding:8px 0;border-radius:12px;border:1.5px solid var(--line);background:rgba(0,0,0,.25)}
+.avs button.on{border-color:var(--gold);background:rgba(255,181,71,.15)}
+.pq{display:grid;grid-template-columns:1fr;gap:12px}
+.pq button{border:0;border-radius:18px;padding:20px 16px;font-size:18px;font-weight:800;text-align:left;display:flex;gap:12px;align-items:center;min-height:74px}
+.pq button .L{font-family:var(--fd);font-size:20px;width:40px;height:40px;border-radius:10px;background:rgba(0,0,0,.25);display:grid;place-items:center;flex:none}
+.pbar{height:8px;border-radius:8px;background:rgba(255,255,255,.1);overflow:hidden}
+.pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--holo),var(--mag));transition:width .25s linear}
+.pstat{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pstat div{background:rgba(0,0,0,.25);border-radius:14px;padding:12px}
+.pstat small{display:block;color:var(--mute);font-size:12px;font-family:var(--fm)}
+.pstat b{font-family:var(--fm);font-size:18px}
+.ploc{display:grid;gap:10px}
+.ploc button{display:flex;gap:12px;align-items:center;text-align:left;border-radius:16px;border:1.5px solid var(--line);background:rgba(0,0,0,.25);padding:12px 14px}
+.ploc button.on{border-color:var(--gold);background:rgba(255,181,71,.12)}
+.ploc .ic{font-size:30px}
+.ploc small{display:block;color:var(--mute);font-family:var(--fm);font-size:12px}
+.bigemoji{font-size:74px;text-align:center;animation:floaty 3s ease-in-out infinite}
+.center{text-align:center}
+
+/* ===================== ЛЕНДИНГ ===================== */
+#landing{position:fixed;inset:0;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 50% 0%,#0d3446,var(--bg) 65%)}
+#landing .box{width:min(560px,100%);display:flex;flex-direction:column;gap:16px;text-align:center}
+#landing h1{font-size:clamp(30px,7vw,52px)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ===== ЛЕНДИНГ ===== -->
+<div id="landing" hidden>
+  <div class="box">
+    <div class="mono holo" style="letter-spacing:.2em">ОСНОВЫ БИЗНЕСА · ТЕМА 14</div>
+    <h1 class="glow">СамсаНомика</h1>
+    <p class="mu" style="font-size:18px">Себестоимость и точка безубыточности — живая презентация с игрой</p>
+    <button class="pbtn" id="lHost">🎤 Я ведущий — запустить презентацию</button>
+    <div class="pcard"><input class="pin" id="lRoom" inputmode="numeric" maxlength="4" placeholder="Код комнаты (4 цифры)"><button class="pbtn" id="lJoin">📱 Войти как участник</button></div>
+  </div>
+</div>
+
+<!-- ===== ХОСТ ===== -->
+<div id="hostWrap" hidden>
+  <div id="stage">
+    <canvas id="grid"></canvas>
+    <canvas id="holo3d" class="big"></canvas>
+    <div class="H-top"><div class="brand">САМСА<b>НОМИКА</b> · <span class="mu" id="hInst"></span></div><div class="mono mu" id="hMeta"></div></div>
+    <div id="slideHost"></div>
+    <div class="bubbles" id="bubbles"></div>
+    <canvas id="confetti"></canvas>
+    <div class="prog" id="prog"></div>
+    <div class="H-bot">
+      <div class="left"><span class="miniqr" id="miniqr" title="Q — большой QR"><span class="q" id="mqr"></span><span>ВХОД · <b class="gold" id="mroom"></b></span></span><span>👥 <b id="pcount">0</b></span><span id="netst"></span></div>
+      <div class="ctrl">
+        <button id="bBots" title="Добавить ботов для репетиции">🤖+10</button>
+        <button id="bPrev" title="Назад (←)">◀</button>
+        <button class="next" id="bNext">Далее ▶</button>
+        <button id="bMute" title="Звук (M)">🔊</button>
+        <button id="bFS" title="Полный экран (F)">⛶</button>
+        <button id="bReset" title="Сбросить всё">↺</button>
+      </div>
+    </div>
+    <div id="bigqr" hidden></div>
+  </div>
+</div>
+
+<!-- ===== ТЕЛЕФОН ===== -->
+<div id="phone" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =========================================================================
+   0) НАСТРОЙКИ — поменяйте под себя
+   ========================================================================= */
+const CFG = {
+  AUTHOR:  "Ашурали Нуралиев",              // докладчик
+  GROUP:   "Группа ____",                    // группа
+  TEACHER: "Преподаватель: ____________",    // преподаватель
+  INST:    "TIIAME",                          // институт
+  QUIZ_SEC: 20,                               // секунд на вопрос
+  GAME_SEC: 90                                // секунд на решение в игре
+};
+/* Брокеры для синхронизации экрана и телефонов (бесплатные, без регистрации) */
+const BROKERS = ["wss://broker.emqx.io:8084/mqtt","wss://broker.hivemq.com:8884/mqtt"];
+
+/* =========================================================================
+   1) УТИЛИТЫ
+   ========================================================================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = n => Math.round(n).toLocaleString("ru-RU").replace(/,/g," ");
+const mln = n => (n/1e6).toLocaleString("ru-RU",{maximumFractionDigits:1}) + " млн";
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+const hash = s => { let h=2166136261; for (const c of String(s)) { h^=c.charCodeAt(0); h=Math.imul(h,16777619); } return h>>>0; };
+const qs = new URLSearchParams(location.search);
+const IS_HOST = qs.get("host") === "1";
+let ROOM = (qs.get("room")||"").replace(/\D/g,"").slice(0,4);
+const store = { get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(_){ return d; } }, set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){} } };
+const LETTERS = ["A","B","C","D"];
+const AVATARS = ["🥟","🦊","🐼","🦁","🐸","🐯","🦄","🐙","🤖","👽","🐻","🐨","🐧","🦉","🐲","🍉","🌶️","⚡"];
+
+/* =========================================================================
+   2) СЕТЬ — MQTT (публичный брокер) или BroadcastChannel (локальная репетиция)
+   ========================================================================= */
+const NET = {
+  mode:"", ok:false, retained:{}, subs:[], client:null, bc:null, prefix:"",
+  on(re, fn){ this.subs.push({re, fn}); for (const t in this.retained) if (re.test(t)) fn(t, this.retained[t]); },
+  _deliver(t, data){ if (data === null) delete this.retained[t]; else this.retained[t] = data; for (const s of this.subs) if (s.re.test(t)) s.fn(t, data); },
+  pub(t, data, retain=true){
+    if (this.mode === "mqtt" && this.client) this.client.publish(this.prefix+t, data===null ? "" : JSON.stringify(data), {retain, qos:0});
+    else if (this.bc) { this.bc.postMessage({k:"m", t, data, retain}); this._deliver(t, data); }
+    if (this.mode === "mqtt" && !this.client.connected) this._deliver(t, data);
+  },
+  start(onStatus){
+    this.prefix = "samsanomika/v2/" + ROOM + "/";
+    const force = qs.get("t");
+    if (force !== "bc" && window.mqtt) {
+      this.mode = "mqtt"; let bi = 0;
+      const connect = () => {
+        const url = BROKERS[bi % BROKERS.length];
+        const c = mqtt.connect(url, {clientId:"sn_"+Math.random().toString(16).slice(2,10), clean:true, reconnectPeriod:2500, connectTimeout:6000, keepalive:30});
+        this.client = c; let opened = false;
+        c.on("connect", () => { opened = true; this.ok = true; onStatus && onStatus("live"); c.subscribe(this.prefix+"#", {qos:0}); });
+        c.on("message", (topic, buf) => { const t = topic.slice(this.prefix.length); const s = buf.toString(); let d=null; if (s) { try{ d=JSON.parse(s); }catch(_){ return; } } this._deliver(t, d); });
+        c.on("close", () => { this.ok = false; onStatus && onStatus("off"); });
+        c.on("error", () => {});
+        setTimeout(() => { if (!opened) { try{ c.end(true); }catch(_){} bi++; connect(); } }, 7000);
+      };
+      connect();
+    } else {
+      this.mode = "bc"; this.ok = true; onStatus && onStatus("local");
+      this.bc = new BroadcastChannel("samsanomika-"+ROOM);
+      this.bc.onmessage = e => {
+        const m = e.data;
+        if (m.k === "m") this._deliver(m.t, m.data);
+        else if (m.k === "sync") for (const t in this.retained) this.bc.postMessage({k:"m", t, data:this.retained[t], retain:true});
+      };
+      this.bc.postMessage({k:"sync"});
+    }
+  }
+};
+
+/* =========================================================================
+   3) ЗВУК — синтезатор WebAudio (без файлов)
+   ========================================================================= */
+const SND = {
+  ctx:null, muted:false,
+  init(){ if (!this.ctx) { try{ this.ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(_){} } if (this.ctx && this.ctx.state==="suspended") this.ctx.resume(); },
+  tone(f, d=.15, type="sine", v=.12, when=0, slide=0){
+    if (this.muted || !this.ctx) return; const t=this.ctx.currentTime+when;
+    const o=this.ctx.createOscillator(), g=this.ctx.createGain(); o.type=type; o.frequency.setValueAtTime(f,t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, t+d);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v,t+.01); g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t+d+.05);
+  },
+  noise(d=.4, v=.08, f1=300, f2=3000){
+    if (this.muted || !this.ctx) return; const t=this.ctx.currentTime, n=this.ctx.sampleRate*d, b=this.ctx.createBuffer(1,n,this.ctx.sampleRate), a=b.getChannelData(0);
+    for (let i=0;i<n;i++) a[i]=Math.random()*2-1;
+    const s=this.ctx.createBufferSource(); s.buffer=b; const bp=this.ctx.createBiquadFilter(); bp.type="bandpass"; bp.Q.value=1.2;
+    bp.frequency.setValueAtTime(f1,t); bp.frequency.exponentialRampToValueAtTime(f2,t+d);
+    const g=this.ctx.createGain(); g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    s.connect(bp).connect(g).connect(this.ctx.destination); s.start(t);
+  },
+  whoosh(){ this.noise(.45,.09,200,4200); this.tone(180,.35,"sine",.05,0,900); },
+  step(){ this.tone(660,.08,"triangle",.07); this.tone(990,.1,"triangle",.05,.06); },
+  join(){ this.tone(523,.1,"sine",.09); this.tone(784,.14,"sine",.08,.08); },
+  tick(){ this.tone(1200,.04,"square",.035); },
+  right(){ [523,659,784,1046].forEach((f,i)=>this.tone(f,.22,"triangle",.08,i*.09)); },
+  boom(){ this.tone(110,.6,"sawtooth",.09,0,40); this.noise(.5,.06,1200,120); },
+  fanfare(){ [392,523,659,784,659,784,1046].forEach((f,i)=>this.tone(f,.28,"square",.05,i*.12)); this.noise(1.2,.03,400,5000); },
+  coin(){ this.tone(988,.07,"square",.05); this.tone(1319,.18,"square",.05,.07); },
+  intro(){ [130.8,196,261.6,392].forEach((f,i)=>this.tone(f,2.2,"sine",.06,i*.35)); this.noise(2,.03,100,3000); }
+};
+
+/* =========================================================================
+   4) ЭКОНОМИКА ИГРЫ «САМСА-ТАЙКУН»
+   ========================================================================= */
+const LOCS = {
+  mahalla:{ic:"🏘️", nm:"Махалля",  fc:6e6,  tr:120, d:"Своя аудитория, дешёвая аренда"},
+  metro:  {ic:"🚇", nm:"У метро",  fc:10e6, tr:200, d:"Поток людей, средняя аренда"},
+  mall:   {ic:"🏬", nm:"ТЦ",       fc:16e6, tr:300, d:"Огромный поток, дорогая аренда"}
+};
+const VC0 = 4000, CAP = 400, DAYS = 30;
+const EVENTS = [
+  {e:"🌾", t:"Мука и мясо подорожали", d:"Переменные затраты: 4 000 → 5 000 сум за самсу", fx:"VC +1 000 всем", bad:1},
+  {e:"📱", t:"Блогер «Самса-Ревьюер» (1 млн подписчиков) снял обзор", d:"Но хвалит только доступную самсу — цена ≤ 9 000", fx:"Поток ×1,5 · если цена ≤ 9 000"},
+  {e:"🏬", t:"Арендодатель ТЦ купил новую Tahoe", d:"…и поднял аренду. Угадайте, за чей счёт", fx:"ТЦ: постоянные +12 млн", bad:1},
+  {e:"🚇", t:"У метро открылся «Самса-Кинг»", d:"Конкурент забрал часть потока", fx:"Метро: поток ×0,7", bad:1},
+  {e:"💍", t:"Свадебный сезон в махалле", d:"Заказы на той — по 500 самс за раз", fx:"Махалля: поток +80/день"},
+  {e:"👮", t:"Проверка СЭС", d:"Каждая третья самсахона без медкнижки — штраф", fx:"−3 млн · не повезло ~33%", bad:1}
+];
+function gameCalc(ch, nEv, pid){
+  if (!ch || !LOCS[ch.loc]) return null;
+  const L = LOCS[ch.loc], P = clamp(+ch.price||8000, 5000, 15000);
+  let vc = VC0, fc = L.fc, tr = L.tr, fine = 0;
+  if (nEv >= 1) vc += 1000;
+  if (nEv >= 2 && P <= 9000) tr *= 1.5;
+  if (nEv >= 3 && ch.loc === "mall") fc += 12e6;
+  if (nEv >= 4 && ch.loc === "metro") tr *= .7;
+  if (nEv >= 5 && ch.loc === "mahalla") tr += 80;
+  if (nEv >= 6 && hash(pid+"ses") % 3 === 0) fine = 3e6;
+  const daily = Math.min(CAP, tr * Math.max(0, (16000 - P) / 8000));
+  const q = Math.round(daily * DAYS);
+  const profit = q * (P - vc) - fc - fine;
+  const bep = P > vc ? Math.ceil(fc / (P - vc)) : Infinity;
+  return {P, vc, fc, q, daily, profit, bep, fine, loc:ch.loc};
+}
+function bestPrice(loc, nEv){
+  let best = {p:0, pr:-1e18};
+  for (let p = 5000; p <= 15000; p += 500) { const r = gameCalc({loc, price:p}, nEv, "x1"); if (r.profit + r.fine > best.pr) best = {p, pr:r.profit + r.fine}; }
+  return best;
+}
+
+/* =========================================================================
+   5) СЛАЙДЫ (32: открытие + 30 + закрытие)
+   live: poll | quiz | gsetup | gevents | gresults | final
+   ========================================================================= */
+const POLL = {q:"Сколько стоит самса в вашем районе?", o:["до 5 000 сум","5 000 – 7 000","7 000 – 9 000","9 000 – 12 000","дороже — я живу в Tashkent City 💅"]};
+const QUIZ = {
+  q1:{q:"Что из этого — ПЕРЕМЕННЫЕ затраты самсахоны?", o:["Аренда помещения","Мука и мясо","Оклад администратора","Вывеска «Самса Илона Маска»"], a:1, x:"Переменные затраты растут вместе с количеством самс. Аренда платится, даже если продали ноль."},
+  q2:{q:"Бахтияр за месяц не продал ни одной самсы. Сколько он потерял?", o:["0 — ничего же не продал","4 000 сум","12 000 000 сум","Только нервы"], a:2, x:"Постоянные затраты (12 млн) никуда не деваются. Нервы — бонусом."},
+  q3:{q:"Мастерская по ремонту телефонов: постоянные 6 млн, ремонт стоит 100 000, переменные 70 000. Точка безубыточности?", o:["60 ремонтов","200 ремонтов","86 ремонтов","600 ремонтов"], a:1, x:"6 000 000 ÷ (100 000 − 70 000) = 6 000 000 ÷ 30 000 = 200 ремонтов в месяц."},
+  q4:{q:"Цена самсы выросла, всё остальное не изменилось. Что с точкой безубыточности?", o:["Растёт","Снижается","Не меняется","Самса обижается"], a:1, x:"С каждой самсы остаётся больше маржи → чтобы покрыть аренду, нужно продать меньше самс."},
+  q5:{q:"Финальный: аренда и зарплаты 9 млн, цена 15 000, переменные 6 000. Точка безубыточности в месяц?", o:["600 штук","1 000 штук","1 500 штук","9 000 штук"], a:1, x:"9 000 000 ÷ (15 000 − 6 000) = 9 000 000 ÷ 9 000 = 1 000 штук."}
+};
+
+const SLIDES = [
+ {id:"open",   live:"lobby",  holo:"big",   steps:0, nm:"Открытие"},
+ {id:"cover",  holo:"big",    steps:1, nm:"Тема"},
+ {id:"poll",   live:"poll",   holo:"corner",steps:1, nm:"Разминка"},
+ {id:"story",  holo:"hide",   steps:4, nm:"История Бахтияра"},
+ {id:"plan",   holo:"corner", steps:1, nm:"План"},
+ {id:"cost",   holo:"corner", steps:3, nm:"Себестоимость"},
+ {id:"anatomy",holo:"hide",   steps:2, nm:"Анатомия самсы"},
+ {id:"q1",     live:"quiz", quiz:"q1", holo:"hide", nm:"Вопрос 1"},
+ {id:"fcvc",   holo:"hide",   steps:3, nm:"Постоянные и переменные"},
+ {id:"q2",     live:"quiz", quiz:"q2", holo:"hide", nm:"Вопрос 2"},
+ {id:"unit",   holo:"hide",   steps:3, nm:"Себестоимость единицы"},
+ {id:"cm",     holo:"hide",   steps:2, nm:"Маржинальный доход"},
+ {id:"bep",    holo:"corner", steps:3, nm:"Точка безубыточности"},
+ {id:"calc",   holo:"hide",   steps:4, nm:"Расчёт СамсаЛаб"},
+ {id:"chart",  holo:"hide",   steps:0, nm:"График"},
+ {id:"money",  holo:"corner", steps:2, nm:"ТБУ в деньгах"},
+ {id:"q3",     live:"quiz", quiz:"q3", holo:"hide", nm:"Вопрос 3"},
+ {id:"whatif", holo:"hide",   steps:3, nm:"Что если?"},
+ {id:"safety", holo:"hide",   steps:2, nm:"Запас прочности"},
+ {id:"lever",  holo:"hide",   steps:2, nm:"Операционный рычаг"},
+ {id:"q4",     live:"quiz", quiz:"q4", holo:"hide", nm:"Вопрос 4"},
+ {id:"fails",  holo:"hide",   steps:4, nm:"Ошибки новичков"},
+ {id:"rules",  holo:"corner", steps:1, nm:"Правила игры"},
+ {id:"gsetup", live:"gsetup", holo:"hide", steps:0, nm:"Игра: открываемся"},
+ {id:"gevents",live:"gevents",holo:"hide", steps:6, nm:"Игра: события"},
+ {id:"gresults",live:"gresults",holo:"hide",steps:1, nm:"Игра: итоги"},
+ {id:"insight",holo:"hide",   steps:3, nm:"Разбор игры"},
+ {id:"three",  holo:"hide",   steps:3, nm:"Кафе, магазин, мастерская"},
+ {id:"q5",     live:"quiz", quiz:"q5", holo:"hide", nm:"Финальный вопрос"},
+ {id:"final",  live:"final",  holo:"hide", steps:1, nm:"Итоговый рейтинг"},
+ {id:"summary",holo:"corner", steps:3, nm:"Выводы"},
+ {id:"close",  holo:"big",    steps:2, nm:"Спасибо!"}
+];
+
+/* =========================================================================
+   6) ХОСТ: состояние
+   ========================================================================= */
+let S = {slide:0, step:0, sub:"", t0:0, lock:false, v:0};   // публикуется в "st"
+let PL = {}, ANS = {}, GAME = {}, POLLV = {}, BOTS = {};      // игроки, ответы, решения, голоса
+let lastRendered = -1, quizTimer = null, gameTimer = null;
+const hk = () => "sn-host-" + ROOM;
+function saveHost(){ store.set(hk(), {S, PL, ANS, GAME, POLLV, BOTS}); }
+function pubState(){ S.v = Date.now(); NET.pub("st", S); saveHost(); }
+function players(){ return Object.entries(PL).map(([id,p]) => ({id, ...p})); }
+
+function quizScore(key){
+  const q = QUIZ[key], out = {}; const A = ANS[key] || {};
+  for (const [pid, a] of Object.entries(A)) {
+    const ok = a.c === q.a; const left = clamp(1 - a.ms/(CFG.QUIZ_SEC*1000), 0, 1);
+    out[pid] = {ok, pts: ok ? Math.round(500 + 500*left) : 0, c:a.c};
+  }
+  return out;
+}
+function totals(){
+  const T = {};
+  for (const p of players()) T[p.id] = {quiz:0, game:0};
+  for (const key of Object.keys(QUIZ)) {
+    const si = SLIDES.findIndex(s => s.quiz === key);
+    const revealed = S.slide > si || (S.slide === si && S.sub === "r");
+    if (!revealed) continue;
+    const sc = quizScore(key); for (const pid in sc) if (T[pid]) T[pid].quiz += sc[pid].pts;
+  }
+  const gi = SLIDES.findIndex(s => s.id === "gresults");
+  if (S.slide >= gi) for (const pid in T) { const r = gameCalc(GAME[pid], 6, pid); if (r) T[pid].game = Math.max(0, Math.round(r.profit / 20000)); }
+  for (const pid in T) T[pid].total = T[pid].quiz + T[pid].game;
+  return T;
+}
+function gameStep(){ const ei = SLIDES.findIndex(s=>s.id==="gevents"); if (S.slide < ei) return 0; if (S.slide === ei) return S.step; return 6; }
+function gameRanking(nEv){
+  return players().map(p => ({...p, r: gameCalc(GAME[p.id], nEv, p.id)})).filter(x => x.r).sort((a,b) => b.r.profit - a.r.profit);
+}
+/* результаты для телефонов */
+function pubResults(){
+  const T = totals(); const ranked = Object.entries(T).sort((a,b)=>b[1].total-a[1].total);
+  const n = gameStep(); const gr = gameRanking(n); const res = {};
+  ranked.forEach(([pid,t],i) => { res[pid] = {score:t.total, rank:i+1, n:ranked.length}; });
+  const cs = SLIDES[S.slide];
+  if (cs.quiz && S.sub === "r") { const sc = quizScore(cs.quiz); for (const pid in res) res[pid].last = sc[pid] || {ok:false, pts:0, c:-1}; }
+  gr.forEach((x,i) => { if (res[x.id]) res[x.id].game = {profit:x.r.profit, rank:i+1, n:gr.length, bep:x.r.bep, q:x.r.q, loc:x.r.loc, P:x.r.P, fine:x.r.fine}; });
+  NET.pub("res", res);
+}
+
+/* =========================================================================
+   7) ХОСТ: рендер слайдов
+   ========================================================================= */
+const S_ = (n, html, cls="", tag="div", extra="") => `<${tag} data-s="${n}" class="${cls}" ${extra}>${html}</${tag}>`;
+function eb(t){ return `<div class="eyebrow">${t}</div>`; }
+
+function bakhtiyar(size=260, mood="happy"){
+  const mouth = mood==="sad" ? `<path d="M88 150 Q110 132 132 150" stroke="#2a1600" stroke-width="6" fill="none" stroke-linecap="round"/>` : `<path d="M86 138 Q110 162 134 138" stroke="#2a1600" stroke-width="6" fill="none" stroke-linecap="round"/>`;
+  const tear = mood==="sad" ? `<path d="M74 118 q-6 14 0 18 q6-4 0-18z" fill="#4ff3ff"/>` : "";
+  return `<svg width="${size}" height="${size}" viewBox="0 0 220 220" aria-hidden="true">
+    <ellipse cx="110" cy="210" rx="70" ry="8" fill="rgba(79,243,255,.25)"/>
+    <circle cx="110" cy="112" r="70" fill="#f2c08a"/>
+    <path d="M44 84 Q110 20 176 84 L170 92 Q110 60 50 92Z" fill="#111"/>
+    <path d="M52 86 Q110 52 168 86" stroke="#fff" stroke-width="5" fill="none" stroke-dasharray="8 7"/>
+    <circle cx="84" cy="108" r="8" fill="#2a1600"/><circle cx="136" cy="108" r="8" fill="#2a1600"/>
+    <path d="M78 92 l16 4 M142 92 l-16 4" stroke="#2a1600" stroke-width="5" stroke-linecap="round"/>
+    <path d="M78 128 Q110 120 142 128" stroke="#3a2410" stroke-width="9" stroke-linecap="round" fill="none"/>
+    ${mouth}${tear}
+  </svg>`;
+}
+function samsaSVG(size=120, glow=true){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 120 120" aria-hidden="true" style="${glow?'filter:drop-shadow(0 0 14px rgba(255,181,71,.6))':''}">
+   <path d="M60 12 L108 98 Q60 112 12 98Z" fill="#e7a24a" stroke="#ffd27f" stroke-width="4" stroke-linejoin="round"/>
+   <path d="M60 12 L60 104" stroke="#c47a25" stroke-width="3"/>
+   <g fill="#fff3d6"><circle cx="48" cy="70" r="2.6"/><circle cx="70" cy="62" r="2.6"/><circle cx="58" cy="84" r="2.6"/><circle cx="76" cy="82" r="2.6"/><circle cx="42" cy="88" r="2.6"/></g></svg>`;
+}
+
+/* --- универсальный график безубыточности (SVG) --- */
+function bepChart(P, VC, FC, opt={}){
+  const W = opt.w||900, H = opt.h||470, pad = {l:110,r:30,t:24,b:56};
+  const bep = P>VC ? FC/(P-VC) : Infinity;
+  const qMax = opt.qMax || Math.max(6000, Math.ceil((isFinite(bep)?bep*1.9:6000)/1000)*1000);
+  const yMax = Math.max(P*qMax, FC+VC*qMax) * 1.05;
+  const x = q => pad.l + (q/qMax)*(W-pad.l-pad.r), y = v => H-pad.b - (v/yMax)*(H-pad.t-pad.b);
+  let grid = ""; for (let i=0;i<=5;i++){ const q=qMax*i/5, v=yMax*i/5;
+    grid += `<line x1="${x(q)}" y1="${pad.t}" x2="${x(q)}" y2="${H-pad.b}" stroke="rgba(79,243,255,.08)"/><text x="${x(q)}" y="${H-pad.b+28}" text-anchor="middle">${fmt(q)}</text>`;
+    grid += `<line x1="${pad.l}" y1="${y(v)}" x2="${W-pad.r}" y2="${y(v)}" stroke="rgba(79,243,255,.08)"/><text x="${pad.l-12}" y="${y(v)+5}" text-anchor="end">${(v/1e6).toFixed(0)} млн</text>`; }
+  const bx = isFinite(bep)&&bep<=qMax ? x(bep) : null, by = bx ? y(P*bep) : null;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+    <defs><linearGradient id="gL" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff4d63" stop-opacity=".35"/><stop offset="1" stop-color="#ff4d63" stop-opacity="0"/></linearGradient>
+    <linearGradient id="gP" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#6bff8f" stop-opacity=".35"/><stop offset="1" stop-color="#6bff8f" stop-opacity="0"/></linearGradient></defs>
+    ${grid}
+    ${bx?`<polygon points="${x(0)},${y(FC)} ${bx},${by} ${x(0)},${y(0)}" fill="url(#gL)"/><polygon points="${bx},${by} ${x(qMax)},${y(P*qMax)} ${x(qMax)},${y(FC+VC*qMax)}" fill="url(#gP)"/>`:""}
+    <line x1="${x(0)}" y1="${y(FC)}" x2="${x(qMax)}" y2="${y(FC)}" stroke="#ff4fd8" stroke-width="3" stroke-dasharray="10 8"/>
+    <line x1="${x(0)}" y1="${y(FC)}" x2="${x(qMax)}" y2="${y(FC+VC*qMax)}" stroke="#ff4d63" stroke-width="5" class="draw"/>
+    <line x1="${x(0)}" y1="${y(0)}" x2="${x(qMax)}" y2="${y(P*qMax)}" stroke="#4ff3ff" stroke-width="5" class="draw" style="filter:drop-shadow(0 0 8px #4ff3ff)"/>
+    ${bx?`<line x1="${bx}" y1="${by}" x2="${bx}" y2="${H-pad.b}" stroke="#ffb547" stroke-width="2" stroke-dasharray="6 6"/>
+      <circle cx="${bx}" cy="${by}" r="14" fill="#ffb547"><animate attributeName="r" values="12;20;12" dur="1.6s" repeatCount="indefinite"/></circle>
+      <circle cx="${bx}" cy="${by}" r="30" fill="none" stroke="#ffb547" stroke-width="2"><animate attributeName="r" values="14;46" dur="1.6s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="1.6s" repeatCount="indefinite"/></circle>
+      <text x="${bx+18}" y="${by-22}" style="fill:#ffb547;font-size:20px;font-weight:800">ТБУ = ${fmt(bep)} шт</text>`:""}
+    <text x="${x(qMax)-6}" y="${y(P*qMax)-12}" text-anchor="end" style="fill:#4ff3ff;font-size:18px">Выручка</text>
+    <text x="${x(qMax)-6}" y="${y(FC+VC*qMax)+26}" text-anchor="end" style="fill:#ff4d63;font-size:18px">Все затраты</text>
+    <text x="${x(0)+10}" y="${y(FC)-10}" style="fill:#ff4fd8;font-size:16px">Постоянные ${mln(FC)}</text>
+    ${bx?`<text x="${x(bep*.45)}" y="${y(FC*0.45)}" style="fill:#ff4d63;font-size:22px;font-weight:800" text-anchor="middle">УБЫТОК</text><text x="${x(Math.min(qMax*.88,bep*1.5))}" y="${y(P*Math.min(qMax*.88,bep*1.5))-60}" style="fill:#6bff8f;font-size:22px;font-weight:800" text-anchor="middle">ПРИБЫЛЬ</text>`:""}
+    <text x="${W/2}" y="${H-6}" text-anchor="middle">Количество самс в месяц</text>
+  </svg>`;
+}
+
+const R = {
+ open: () => `
+  <div class="row" style="height:100%;align-items:center">
+   <div class="col" style="flex:1;gap:22px">
+    ${eb("Основы бизнеса и предпринимательства · Тема 14")}
+    <h1 class="t1"><span class="glitch glow" data-t="САМСА">САМСА</span><span class="glowG">НОМИКА</span></h1>
+    <div class="lead" style="font-size:30px">Себестоимость и точка безубыточности.<br>Сегодня вы откроете свою самсахону — и узнаете, выживет ли она.</div>
+    <div class="row" style="align-items:center;gap:34px;margin-top:10px">
+      <div class="qrbox" id="bigqrSlot"></div>
+      <div class="col" style="gap:6px">
+        <div class="mono mu" style="font-size:20px">1. Наведите камеру на QR<br>2. Или откройте ссылку и введите код</div>
+        <div class="room glow" id="roomBig">${ROOM}</div>
+        <div class="mono" style="font-size:22px">👥 в игре: <b class="gold" id="cntBig">0</b></div>
+      </div>
+    </div>
+   </div>
+   <div style="width:600px"></div>
+  </div>`,
+ cover: () => `
+  <div class="col" style="height:100%;justify-content:center;gap:24px;max-width:860px">
+   ${eb("Самостоятельная работа · Тема №14")}
+   <h1 class="t1" style="font-size:76px">Себестоимость<br>и <span class="glow">точка безубыточности</span></h1>
+   <div class="lead">на условном примере самсахоны <b class="gold">«СамсаЛаб»</b></div>
+   ${S_(1, `<div class="row" style="gap:16px;flex-wrap:wrap"><span class="tag">🎤 ${esc(CFG.AUTHOR)}</span><span class="tag">👥 ${esc(CFG.GROUP)}</span><span class="tag">🎓 ${esc(CFG.TEACHER)}</span><span class="tag">🏛 ${esc(CFG.INST)}</span></div>`)}
+  </div>`,
+ poll: () => `
+  ${eb("Разминка · голосуйте с телефона")}
+  <h2 class="t2">${POLL.q}</h2>
+  <div class="col" id="pollBars" style="margin-top:34px;gap:14px"></div>
+  ${S_(1, `<div class="joke" style="margin-top:22px">Запомните эту цифру. Через 20 минут вы поймёте, почему самса стоит <b>именно столько</b> — и почему дешевле может быть опасно.</div>`)}`,
+ story: () => `
+  ${eb("Кейс")}
+  <div class="row" style="flex:1;align-items:center;gap:60px">
+   <div style="text-align:center"><div id="bakh" style="animation:floaty 3s ease-in-out infinite">${bakhtiyar(300, S.step>=3?"sad":"happy")}</div><div class="t3">Бахтияр-ака</div><div class="mu mono">начинающий предприниматель</div></div>
+   <div class="col" style="flex:1;gap:20px">
+    ${S_(1, `<div class="card"><div class="mono holo">МЕЧТА</div><div class="t3" style="margin-top:6px">Открыть самсахону «Самса Илона Маска» 🚀</div></div>`)}
+    ${S_(2, `<div class="card"><div class="mono holo">ЧТО ОН СДЕЛАЛ</div><div style="font-size:26px;margin-top:6px">✅ Неоновая вывеска &nbsp; ✅ Помещение в ТЦ &nbsp; ✅ Цена «как у соседа»<br>❌ Не посчитал, сколько самс нужно продать</div></div>`)}
+    ${S_(3, `<div class="card" style="border-color:var(--bad)"><div class="mono bad">ЧЕРЕЗ 3 МЕСЯЦА</div><div class="big bad num" id="lossCnt">0 сум</div></div>`)}
+    ${S_(4, `<div class="joke">Вопрос дня: сколько самс в день нужно было продавать, чтобы не уйти в минус? <b>Сегодня посчитаем.</b></div>`)}
+   </div>
+  </div>`,
+ plan: () => {
+  const st = ["Себестоимость","Постоянные и переменные","Маржинальный доход","Точка безубыточности","Запас прочности и рычаг","Игра «Самса-Тайкун»"];
+  return `${eb("Маршрут урока")}<h2 class="t2">6 станций до прибыли</h2>
+  <svg viewBox="0 0 1440 360" width="1440" height="360" style="margin-top:30px;overflow:visible">
+   <path id="metro" d="M40 260 C 240 260, 240 100, 440 100 S 640 260, 840 260 S 1040 100, 1240 100 L 1400 100" stroke="rgba(79,243,255,.25)" stroke-width="14" fill="none" stroke-linecap="round"/>
+   <path d="M40 260 C 240 260, 240 100, 440 100 S 640 260, 840 260 S 1040 100, 1240 100 L 1400 100" stroke="#4ff3ff" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="1700" stroke-dashoffset="1700" style="filter:drop-shadow(0 0 10px #4ff3ff)"><animate attributeName="stroke-dashoffset" to="0" dur="2.4s" fill="freeze"/></path>
+   ${[[40,260],[300,180],[560,180],[840,260],[1110,170],[1400,100]].map((p,i)=>`<g style="animation:popIn .6s ${0.3+i*.35}s both"><circle cx="${p[0]}" cy="${p[1]}" r="22" fill="#040912" stroke="${i===5?'#ffb547':'#4ff3ff'}" stroke-width="6"/><text x="${p[0]}" y="${p[1]+7}" text-anchor="middle" style="font-family:Unbounded;font-weight:900;font-size:18px;fill:${i===5?'#ffb547':'#4ff3ff'}">${i+1}</text><text x="${p[0]}" y="${p[1]+(i%2?-44:58)}" text-anchor="middle" style="font-family:Manrope;font-weight:800;font-size:22px;fill:#e9fbff">${st[i]}</text></g>`).join("")}
+   <g><circle r="14" fill="#ffb547"><animateMotion dur="6s" repeatCount="indefinite" path="M40 260 C 240 260, 240 100, 440 100 S 640 260, 840 260 S 1040 100, 1240 100 L 1400 100"/></circle></g>
+  </svg>
+  ${S_(1, `<div class="joke">Конечная станция — прибыль. Пересадка на станции «Банкротство» не предусмотрена 🙂</div>`)}`;
+ },
+ cost: () => `
+  ${eb("Станция 1")}
+  <h2 class="t2">Себестоимость — это…</h2>
+  <div class="lead" style="margin-top:18px;font-size:32px">все затраты на производство и продажу продукции, выраженные в деньгах.</div>
+  <div class="grid2" style="margin-top:34px">
+   ${S_(1, `<div class="card" style="height:100%"><div class="mono holo">ПРОСТЫМИ СЛОВАМИ</div><div class="t3" style="margin-top:10px">Сколько самса стоит <span class="glowG">ВАМ</span>, а не покупателю</div></div>`)}
+   ${S_(2, `<div class="card" style="height:100%;display:flex;gap:30px;align-items:center"><div style="text-align:center"><div class="big holo">8 000</div><div class="mu">цена · для клиента</div></div><div class="big mu">≠</div><div style="text-align:center"><div class="big gold">4 000+</div><div class="mu">себестоимость · для вас</div></div></div>`)}
+  </div>
+  ${S_(3, `<div class="formula" style="margin-top:30px;font-size:40px">Прибыль = Цена − Себестоимость <span class="mu" style="font-size:22px;font-family:var(--fb)">(если продали достаточно!)</span></div>`)}`,
+ anatomy: () => {
+  const parts = [["🫓","Тесто (мука, маргарин)",900,"#ffd27f"],["🥩","Мясо",2200,"#ff4d63"],["🧅","Лук и специи",300,"#2ee59d"],["🥚","Яйцо для смазки, кунжут",150,"#4ff3ff"],["🔥","Газ и электричество на 1 шт.",250,"#ff4fd8"],["📦","Упаковка",200,"#9af9ff"]];
+  let acc = 0;
+  return `${eb("Голограмма: разбираем самсу на атомы")}<h2 class="t2">Анатомия одной самсы</h2>
+  <div class="row" style="margin-top:30px;gap:50px;align-items:center;flex:1">
+   <div style="position:relative;width:420px;height:420px;display:grid;place-items:center">
+     <div style="position:absolute;inset:0;border-radius:50%;border:2px dashed rgba(79,243,255,.35);animation:spin 18s linear infinite"></div>
+     <div style="position:absolute;inset:40px;border-radius:50%;border:1px solid rgba(255,79,216,.35);animation:spin 11s linear infinite reverse"></div>
+     ${parts.map((p,i)=>{const a=i/parts.length*6.283-1.57;return `<div style="position:absolute;left:${210+170*Math.cos(a)-30}px;top:${210+170*Math.sin(a)-30}px;font-size:48px;animation:popIn .5s ${.2+i*.15}s both, floaty 3s ${i*.3}s ease-in-out infinite">${p[0]}</div>`;}).join("")}
+     <div style="animation:floaty 3s ease-in-out infinite">${samsaSVG(170)}</div>
+   </div>
+   <div class="col" style="flex:1;gap:10px">
+    ${parts.map((p,i)=>{acc+=p[2];return `<div class="row" style="align-items:center;gap:16px;font-size:24px;animation:popIn .5s ${.3+i*.2}s both"><span style="font-size:32px">${p[0]}</span><span style="flex:1">${p[1]}</span><span class="num" style="width:120px;text-align:right">${fmt(p[2])}</span><span style="width:240px;height:18px;border-radius:9px;background:rgba(255,255,255,.06);overflow:hidden"><i style="display:block;height:100%;width:${p[2]/22}%;background:${p[3]};box-shadow:0 0 12px ${p[3]}"></i></span></div>`;}).join("")}
+    ${S_(1, `<div class="row" style="justify-content:space-between;border-top:2px solid var(--line);padding-top:12px;font-size:30px;font-weight:800"><span>Итого переменные на 1 самсу</span><span class="glowG num">4 000 сум</span></div>`)}
+    ${S_(2, `<div class="joke">Мясо — 55% себестоимости. Поэтому «самса без мяса» — это не самса, а пирожок с разочарованием.</div>`)}
+   </div>
+  </div>`;
+ },
+ fcvc: () => {
+  const fc = [["🏢","Аренда","6 000 000"],["👩‍🍳","Оклады персонала","4 000 000"],["💡","Коммуналка (база)","1 200 000"],["🧾","Касса, интернет, прочее","800 000"]];
+  const vc = [["🫓","Мука и тесто"],["🥩","Мясо"],["🧅","Лук и специи"],["📦","Упаковка"],["🔥","Газ на выпечку"]];
+  return `${eb("Станция 2")}<h2 class="t2">Два вида затрат</h2>
+  <div class="grid2" style="margin-top:28px;flex:1">
+   ${S_(1, `<div class="card" style="border-color:rgba(255,79,216,.5);height:100%"><div class="t3 mag">Постоянные (FC)</div><div class="mu" style="font-size:20px;margin:6px 0 16px">не зависят от количества самс</div>
+     ${fc.map((x,i)=>`<div class="row" style="justify-content:space-between;font-size:24px;padding:8px 0;border-bottom:1px solid var(--line);animation:popIn .5s ${i*.15}s both"><span>${x[0]} ${x[1]}</span><b class="num">${x[2]}</b></div>`).join("")}
+     <div class="row" style="justify-content:space-between;font-size:30px;font-weight:800;margin-top:14px"><span>Итого в месяц</span><span class="mag num">12 000 000</span></div>
+     <div class="mu" style="margin-top:10px;font-size:20px">Платишь, даже если продал 0 самс 😭</div></div>`)}
+   ${S_(2, `<div class="card" style="border-color:rgba(79,243,255,.5);height:100%"><div class="t3 holo">Переменные (VC)</div><div class="mu" style="font-size:20px;margin:6px 0 16px">растут с каждой проданной самсой</div>
+     <div class="row" style="flex-wrap:wrap;gap:12px">${vc.map((x,i)=>`<span class="tag" style="font-size:22px;animation:popIn .5s ${i*.12}s both">${x[0]} ${x[1]}</span>`).join("")}</div>
+     <div class="row" style="justify-content:space-between;font-size:30px;font-weight:800;margin-top:26px"><span>На 1 самсу</span><span class="holo num">4 000</span></div>
+     <div class="mu" style="margin-top:10px;font-size:20px">Не продал — не потратил 😌</div></div>`)}
+  </div>
+  ${S_(3, `<div class="joke" style="margin-top:20px">Аренда не знает, что сегодня шёл дождь и никто не пришёл. Аренда просто приходит 1-го числа.</div>`)}`;
+ },
+ unit: () => `
+  ${eb("Станция 2 · продолжение")}<h2 class="t2">Себестоимость одной самсы зависит от объёма</h2>
+  <div class="row" style="margin-top:26px;gap:44px;align-items:flex-start">
+   <div class="col" style="width:640px">
+    <div class="formula" style="font-size:40px">C<sub style="font-size:.5em">ед.</sub> = <span class="frac"><span>FC</span><span>Q</span></span> + VC</div>
+    ${S_(1, `<div class="card" style="font-size:24px">
+      <div class="row num" style="justify-content:space-between;padding:6px 0"><span>Q = 1 000</span><span>12 000 + 4 000 = <b class="bad">16 000</b></span></div>
+      <div class="row num" style="justify-content:space-between;padding:6px 0"><span>Q = 3 000</span><span>4 000 + 4 000 = <b class="gold">8 000</b></span></div>
+      <div class="row num" style="justify-content:space-between;padding:6px 0"><span>Q = 6 000</span><span>2 000 + 4 000 = <b class="ok">6 000</b></span></div></div>`)}
+    ${S_(3, `<div class="joke">Продать ровно одну самсу за месяц = самса стоимостью <b>12 004 000 сум</b>. Самая дорогая самса в истории Узбекистана.</div>`)}
+   </div>
+   ${S_(2, (()=>{const W=720,H=420; let d=""; for(let q=500;q<=6000;q+=100){const v=12e6/q+4000; const x=60+(q-500)/5500*(W-90), y=H-40-(Math.min(v,28000)/28000)*(H-70); d+=(d?" L":"M")+x.toFixed(1)+" "+y.toFixed(1);} return `<svg class="chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><line x1="60" y1="${H-40}" x2="${W-30}" y2="${H-40}" stroke="rgba(79,243,255,.3)"/><line x1="60" y1="20" x2="60" y2="${H-40}" stroke="rgba(79,243,255,.3)"/><path d="${d}" fill="none" stroke="#ffb547" stroke-width="6" stroke-dasharray="2000" stroke-dashoffset="2000" style="filter:drop-shadow(0 0 8px #ffb547)"><animate attributeName="stroke-dashoffset" to="0" dur="2s" fill="freeze" begin="0.2s"/></path><line x1="60" y1="${H-40-(4000/28000)*(H-70)}" x2="${W-30}" y2="${H-40-(4000/28000)*(H-70)}" stroke="#4ff3ff" stroke-dasharray="8 8"/><text x="${W-34}" y="${H-52-(4000/28000)*(H-70)}" text-anchor="end" style="fill:#4ff3ff">VC = 4 000 (нижняя граница)</text><text x="70" y="40" style="fill:#ffb547;font-size:18px">сум за 1 самсу</text><text x="${W-30}" y="${H-12}" text-anchor="end">самс в месяц →</text></svg>`;})())}
+  </div>`,
+ cm: () => `
+  ${eb("Станция 3")}<h2 class="t2">Маржинальный доход — вклад каждой самсы</h2>
+  <div class="row" style="margin-top:28px;gap:50px;align-items:center;flex:1">
+   <div class="col" style="flex:1;gap:24px">
+    <div class="formula">MД = P − VC</div>
+    <div class="formula" style="font-size:44px;border-color:var(--gold);color:var(--gold)">8 000 − 4 000 = 4 000 сум</div>
+    ${S_(1, `<div class="lead">Каждая проданная самса кладёт <b class="gold">4 000 сум</b> в «бочку» постоянных затрат.</div>`)}
+    ${S_(2, `<div class="joke">Пока бочка не полная — вы работаете на арендодателя. Когда полная — каждая следующая самса работает на вас 💰</div>`)}
+   </div>
+   <div style="position:relative;width:420px;height:520px">
+     <div style="position:absolute;left:60px;right:60px;bottom:20px;height:380px;border:4px solid var(--holo);border-top:0;border-radius:0 0 40px 40px;overflow:hidden;box-shadow:0 0 40px rgba(79,243,255,.25)">
+       <div id="barrel" style="position:absolute;left:0;right:0;bottom:0;height:0%;background:linear-gradient(0deg,#ffb547,#ffd27f);transition:height .4s"></div>
+       <div style="position:absolute;inset:0;display:grid;place-items:center;font-family:var(--fd);font-weight:900;font-size:30px;text-align:center;color:#fff;text-shadow:0 2px 10px #000" id="barrelT">0 / 12 млн</div>
+     </div>
+     <div class="mono mu" style="position:absolute;top:56px;left:0;right:0;text-align:center;font-size:18px">бочка постоянных затрат</div>
+     <div id="coins" style="position:absolute;inset:0;pointer-events:none"></div>
+   </div>
+  </div>`,
+ bep: () => `
+  ${eb("Станция 4 · главная")}<h2 class="t2">Точка безубыточности (ТБУ)</h2>
+  ${S_(1, `<div class="lead" style="margin-top:20px;font-size:32px">— объём продаж, при котором <b class="holo">выручка = все затраты</b>, а прибыль <b class="gold">= 0</b>.</div>`)}
+  ${S_(2, `<div style="margin-top:40px;display:flex;justify-content:center"><div class="formula" style="font-size:80px;padding:40px 70px">Q<sub style="font-size:.4em">ТБУ</sub> = <span class="frac"><span class="mag">FC</span><span><span class="glowG">P</span> − <span class="holo">VC</span></span></span></div></div>`)}
+  ${S_(3, `<div class="row" style="justify-content:center;gap:40px;margin-top:30px;font-size:24px"><span><b class="mag">FC</b> — постоянные</span><span><b class="gold">P</b> — цена</span><span><b class="holo">VC</b> — переменные на 1 шт.</span></div><div class="joke" style="margin-top:22px;align-self:center">ТБУ — это состояние «ноль, но живой». Как студент после стипендии.</div>`)}`,
+ calc: () => `
+  ${eb("Считаем «СамсаЛаб»")}<h2 class="t2">Сколько самс нужно продать?</h2>
+  <div class="grid3" style="margin-top:26px">
+   <div class="card"><div class="mono mag">FC · постоянные</div><div class="big num">12 000 000</div><div class="mu">сум в месяц</div></div>
+   <div class="card"><div class="mono gold">P · цена</div><div class="big num">8 000</div><div class="mu">сум за самсу</div></div>
+   <div class="card"><div class="mono holo">VC · переменные</div><div class="big num">4 000</div><div class="mu">сум за самсу</div></div>
+  </div>
+  <div class="col" style="margin-top:28px;gap:16px;font-size:34px;font-weight:700">
+   ${S_(1, `<div>① Маржа с самсы: 8 000 − 4 000 = <span class="gold num">4 000</span></div>`)}
+   ${S_(2, `<div>② ТБУ = 12 000 000 ÷ 4 000 = <span class="glow num big" style="font-size:56px">3 000</span> самс в месяц</div>`)}
+   ${S_(3, `<div>③ 3 000 ÷ 30 дней = <span class="glowG num big" style="font-size:56px">100</span> самс в день</div>`)}
+   ${S_(4, `<div class="joke" style="font-size:28px">🎉 101-я самса за день — первая самса прибыли. Её можно съесть самому. Ладно, нельзя — это 4 000 прибыли.</div>`)}
+  </div>`,
+ chart: () => `
+  ${eb("Интерактивный график · двигайте ползунки")}<h2 class="t2" style="font-size:44px">Где кончается убыток и начинается прибыль</h2>
+  <div class="row" style="margin-top:18px;gap:30px;align-items:flex-start">
+   <div id="chartBox">${bepChart(8000,4000,12e6)}</div>
+   <div class="col" style="flex:1;gap:22px;margin-top:20px">
+    <div class="slider"><span class="gold">Цена P</span><input type="range" id="sP" min="5000" max="14000" step="500" value="8000"><b id="vP">8 000</b></div>
+    <div class="slider"><span class="holo">Переменные VC</span><input type="range" id="sV" min="2000" max="7000" step="250" value="4000"><b id="vV">4 000</b></div>
+    <div class="slider"><span class="mag">Постоянные FC</span><input type="range" id="sF" min="4000000" max="30000000" step="1000000" value="12000000"><b id="vF">12 млн</b></div>
+    <div class="card" style="text-align:center"><div class="mono mu">ТОЧКА БЕЗУБЫТОЧНОСТИ</div><div class="big glowG num" id="vB">3 000</div><div class="mu" id="vBd">самс в месяц · 100 в день</div></div>
+   </div>
+  </div>`,
+ money: () => `
+  ${eb("Станция 4 · в деньгах")}<h2 class="t2">ТБУ можно посчитать и в сумах</h2>
+  <div class="col" style="margin-top:34px;gap:28px">
+   <div class="formula" style="font-size:44px">ТБУ<sub style="font-size:.45em">₴</sub> = Q<sub style="font-size:.45em">ТБУ</sub> × P = 3 000 × 8 000 = <span class="glowG">24 млн сум</span></div>
+   ${S_(1, `<div class="formula" style="font-size:40px;border-color:var(--mag)">или: FC ÷ доля маржи = 12 млн ÷ <span class="frac"><span>4 000</span><span>8 000</span></span> = 12 млн ÷ 0,5 = <span class="glowG">24 млн</span></div>`)}
+   ${S_(2, `<div class="joke">Пока касса не насчитала 24 млн выручки за месяц — бизнес ещё не заработал ни одного сума. Красивая выручка ≠ прибыль.</div>`)}
+  </div>`,
+ whatif: () => `
+  ${eb("Анализ чувствительности")}<h2 class="t2">Что если…?</h2>
+  <div class="row" style="margin-top:22px;gap:30px;align-items:flex-start">
+   <div id="wiChart">${bepChart(8000,4000,12e6,{w:820,h:440,qMax:7000})}</div>
+   <div class="col" style="flex:1;gap:14px">
+    <div class="card" id="wi0" style="padding:16px 22px"><div class="mono mu">БАЗА</div><div style="font-size:24px">P 8 000 · VC 4 000 · FC 12 млн → <b class="gold">3 000</b></div></div>
+    ${S_(1, `<div class="card" style="padding:16px 22px;border-color:var(--ok)"><div class="mono ok">ЦЕНА +1 000 (9 000)</div><div style="font-size:24px">12 млн ÷ 5 000 = <b class="ok">2 400</b> <span class="mu">(−20%)</span></div></div>`)}
+    ${S_(2, `<div class="card" style="padding:16px 22px;border-color:var(--bad)"><div class="mono bad">МЯСО ПОДОРОЖАЛО: VC 5 000</div><div style="font-size:24px">12 млн ÷ 3 000 = <b class="bad">4 000</b> <span class="mu">(+33%)</span></div></div>`)}
+    ${S_(3, `<div class="card" style="padding:16px 22px;border-color:var(--mag)"><div class="mono mag">ПЕРЕЕХАЛ В ТЦ: FC 24 млн</div><div style="font-size:24px">24 млн ÷ 4 000 = <b class="mag">6 000</b> <span class="mu">(×2!)</span></div></div>`)}
+   </div>
+  </div>`,
+ safety: () => `
+  ${eb("Станция 5")}<h2 class="t2">Запас финансовой прочности</h2>
+  <div class="row" style="margin-top:28px;gap:50px;align-items:center;flex:1">
+   <div class="col" style="flex:1;gap:22px">
+    <div class="lead">«СамсаЛаб» продаёт <b class="holo">150 самс в день</b> = 4 500 в месяц. ТБУ = 3 000.</div>
+    <div class="formula" style="font-size:40px">ЗФП = <span class="frac"><span>4 500 − 3 000</span><span>4 500</span></span> = <span class="glowG">33%</span></div>
+    ${S_(1, `<div class="lead">Продажи могут упасть на треть — и мы всё ещё не в минусе.</div>`)}
+    ${S_(2, `<div class="joke">ЗФП — это подушка безопасности. Только набита самсой. Меньше 20% — спите плохо.</div>`)}
+   </div>
+   <svg width="480" height="300" viewBox="0 0 480 300">
+     <path d="M40 260 A200 200 0 0 1 440 260" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="40"/>
+     <path d="M40 260 A200 200 0 0 1 172 72" fill="none" stroke="#ff4d63" stroke-width="40"/>
+     <path d="M172 72 A200 200 0 0 1 304 74" fill="none" stroke="#ffb547" stroke-width="40"/>
+     <path d="M304 74 A200 200 0 0 1 440 260" fill="none" stroke="#6bff8f" stroke-width="40"/>
+     <g style="transform-origin:240px 260px;animation:needle 2.2s cubic-bezier(.3,1.5,.4,1) both"><line x1="240" y1="260" x2="240" y2="80" stroke="#fff" stroke-width="8" stroke-linecap="round"/></g>
+     <circle cx="240" cy="260" r="18" fill="#fff"/>
+     <text x="60" y="292" style="fill:#ff4d63;font-family:JetBrains Mono;font-size:18px">опасно</text><text x="380" y="292" style="fill:#6bff8f;font-family:JetBrains Mono;font-size:18px">спокойно</text>
+     <style>@keyframes needle{from{transform:rotate(-90deg)}to{transform:rotate(-30deg)}}</style>
+   </svg>
+  </div>`,
+ lever: () => `
+  ${eb("Станция 5 · бонус")}<h2 class="t2">Операционный рычаг</h2>
+  <div class="row" style="margin-top:24px;gap:40px;align-items:center;flex:1">
+   <div class="col" style="flex:1;gap:16px;font-size:28px">
+    <div>Маржа: 4 500 × 4 000 = <b class="gold num">18 млн</b></div>
+    <div>Прибыль: 18 − 12 = <b class="ok num">6 млн</b></div>
+    <div class="formula" style="font-size:40px">Рычаг = 18 ÷ 6 = <span class="glowG">3</span></div>
+    ${S_(1, `<div class="lead"><b class="ok">+10%</b> продаж → <b class="ok">+30%</b> прибыли 🚀</div>`)}
+    ${S_(2, `<div class="lead"><b class="bad">−10%</b> продаж → <b class="bad">−30%</b> прибыли 😬 <span class="mu">Рычаг работает в обе стороны.</span></div>`)}
+   </div>
+   <svg width="560" height="380" viewBox="0 0 560 380">
+     <polygon points="280,330 250,370 310,370" fill="#4ff3ff"/>
+     <g style="transform-origin:280px 330px;animation:lev 3s ease-in-out infinite">
+       <rect x="40" y="322" width="480" height="16" rx="8" fill="#ffb547"/>
+       <text x="70" y="300" style="font-size:44px">🥟</text>
+       <text x="430" y="300" style="font-size:60px">💰</text>
+     </g>
+     <style>@keyframes lev{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}</style>
+   </svg>
+  </div>`,
+ fails: () => {
+  const f = [["🤝","Цена «как у соседа»","У соседа своя аренда, своё мясо и свой папа-арендодатель."],["🙈","Забыл свою зарплату","Бизнес «в плюсе», а вы работаете бесплатно. Это хобби, не бизнес."],["👨‍👩‍👦","Родственники едят бесплатно","Каждая бесплатная самса = −4 000. Тётя Малика ест 6 в день."],["✨","ТЦ «потому что красиво»","Аренда ×2 → ТБУ ×2. Красота требует 6 000 самс в месяц."]];
+  return `${eb("Не повторяйте дома")}<h2 class="t2">Топ-4 ошибки начинающих</h2>
+  <div class="grid4" style="margin-top:30px;flex:1">${f.map((x,i)=>S_(i+1, `<div class="card" style="height:100%;display:flex;flex-direction:column;gap:12px"><div style="font-size:60px">${x[0]}</div><div class="t3" style="font-size:26px">${x[1]}</div><div class="mu" style="font-size:21px;line-height:1.4">${x[2]}</div></div>`)).join("")}</div>`;
+ },
+ rules: () => `
+  ${eb("Станция 6 · игра")}<h2 class="t2"><span class="glowG">САМСА-ТАЙКУН</span> 🥟📈</h2>
+  <div class="lead" style="margin-top:10px">Откройте свою самсахону с телефона. У вас <b class="holo">${CFG.GAME_SEC} секунд</b>: выберите место и цену.</div>
+  <div class="locs" style="margin-top:22px">${Object.values(LOCS).map(l=>`<div class="loc"><div class="ic">${l.ic}</div><div class="t3" style="margin-top:6px">${l.nm}</div><div class="mu" style="font-size:19px">${l.d}</div><div class="num" style="font-size:22px;margin-top:10px">FC <b class="mag">${mln(l.fc)}</b> · поток <b class="holo">${l.tr}/день</b></div></div>`).join("")}</div>
+  ${S_(1, `<div class="row" style="gap:20px;margin-top:20px;font-size:22px;flex-wrap:wrap"><span class="tag">VC = 4 000 сум</span><span class="tag">цена 5 000 – 15 000</span><span class="tag">дороже → меньше покупателей</span><span class="tag">тандыр: максимум 400 в день</span><span class="tag">потом придут СОБЫТИЯ 😈</span></div>`)}`,
+ gsetup: () => `
+  ${eb("Самса-Тайкун · открываем рынок")}<h2 class="t2">Выбирайте место и цену на телефоне</h2>
+  <div class="timer" id="gTimer"></div>
+  <div class="row" style="margin-top:22px;gap:30px;flex:1">
+   <div class="col" style="width:420px;gap:14px" id="gStats"></div>
+   <div style="flex:1;display:flex;flex-wrap:wrap;gap:10px;align-content:flex-start" id="gWall"></div>
+  </div>`,
+ gevents: () => `
+  ${eb("Самса-Тайкун · жизнь вносит коррективы")}<h2 class="t2" style="font-size:44px">События месяца</h2>
+  <div class="row" style="margin-top:16px;gap:26px;flex:1;min-height:0">
+   <div class="col" style="flex:1.15;gap:8px">${EVENTS.map((e,i)=>S_(i+1, `<div class="ev" style="border-color:${e.bad?'rgba(255,77,99,.5)':'rgba(107,255,143,.5)'}"><span class="e">${e.e}</span><div><b>${e.t}</b><div class="mu" style="font-size:15px">${e.d}</div></div><span class="fx ${e.bad?'bad':'ok'}">${e.fx}</span></div>`)).join("")}</div>
+   <div class="col" style="flex:1;gap:8px"><div class="mono mu">ЛИДЕРЫ ПО ПРИБЫЛИ · ПОСЛЕ <b id="evN">0</b> СОБЫТИЙ</div><div class="lb" id="evLB"></div></div>
+  </div>`,
+ gresults: () => `
+  ${eb("Самса-Тайкун · итоги месяца")}<h2 class="t2" style="font-size:44px">Кто заработал больше всех?</h2>
+  <div class="row" style="margin-top:14px;gap:30px;flex:1">
+   <div style="flex:1.2" id="grPodium"></div>
+   <div class="col" style="flex:1;gap:12px" id="grStats"></div>
+  </div>`,
+ insight: () => `
+  ${eb("Разбор игры")}<h2 class="t2">Почему победитель победил</h2>
+  <div class="col" style="margin-top:26px;gap:18px" id="insBox"></div>`,
+ three: () => {
+  const b = [["☕","Кафе «СамсаЛаб»",12e6,8000,4000,"самс"],["🛒","Мини-маркет у дома",15e6,50000,40000,"чеков"],["🔧","Автомастерская «Гайка»",9e6,150000,90000,"заказов"]];
+  return `${eb("Одна формула — любой бизнес")}<h2 class="t2">Кафе, магазин, мастерская</h2>
+  <div class="grid3" style="margin-top:28px">${b.map((x,i)=>{const q=Math.ceil(x[2]/(x[3]-x[4]));return S_(i+1, `<div class="card"><div style="font-size:60px">${x[0]}</div><div class="t3" style="font-size:26px;margin:6px 0 14px">${x[1]}</div>
+    <div class="num" style="font-size:21px;line-height:1.7">FC: <b class="mag">${mln(x[2])}</b><br>Средний чек: <b class="gold">${fmt(x[3])}</b><br>Переменные: <b class="holo">${fmt(x[4])}</b></div>
+    <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px"><div class="mono mu">ТБУ</div><div class="big glowG num" style="font-size:52px">${fmt(q)}</div><div class="mu">${x[5]} в месяц · ≈ ${fmt(Math.ceil(q/30))} в день</div></div></div>`);}).join("")}</div>`;
+ },
+ final: () => `
+  ${eb("Итоговый рейтинг · викторина + игра")}<h2 class="t2" style="font-size:46px">Лучший бизнесмен группы 🏆</h2>
+  <div id="finPodium" style="margin-top:10px"></div>
+  ${S_(1, `<div id="finRest" class="row" style="gap:12px;flex-wrap:wrap;justify-content:center;margin-top:10px"></div>`)}`,
+ summary: () => `
+  ${eb("Шпаргалка")}<h2 class="t2">3 вещи, которые стоит унести с собой</h2>
+  <div class="row" style="margin-top:28px;gap:34px;flex:1">
+   <div class="col" style="flex:1.2;gap:18px">
+    ${S_(1, `<div class="card"><div class="t3"><span class="glowG">1.</span> Знайте себестоимость до тийина</div><div class="mu" style="font-size:21px;margin-top:6px">Разделите затраты на постоянные и переменные — без этого ничего не посчитать.</div></div>`)}
+    ${S_(2, `<div class="card"><div class="t3"><span class="glowG">2.</span> Считайте ТБУ ДО открытия</div><div class="mu" style="font-size:21px;margin-top:6px">А не после закрытия, как Бахтияр-ака.</div></div>`)}
+    ${S_(3, `<div class="card"><div class="t3"><span class="glowG">3.</span> Следите за запасом прочности</div><div class="mu" style="font-size:21px;margin-top:6px">Меньше 20% — любая «новость» (мясо, аренда, конкурент) уводит в минус.</div></div>`)}
+   </div>
+   <div class="card" style="flex:1;font-size:25px;line-height:2.1;border-color:var(--gold)">
+    <div class="mono gold">ФОРМУЛЫ</div>
+    <div>C<sub>ед.</sub> = FC ÷ Q + VC</div>
+    <div>МД = P − VC</div>
+    <div><b class="glowG">Q<sub>ТБУ</sub> = FC ÷ (P − VC)</b></div>
+    <div>ТБУ<sub>сум</sub> = Q<sub>ТБУ</sub> × P</div>
+    <div>ЗФП = (Q − Q<sub>ТБУ</sub>) ÷ Q</div>
+    <div>Рычаг = МД ÷ Прибыль</div>
+   </div>
+  </div>`,
+ close: () => `
+  <div class="row" style="height:100%;align-items:center">
+   <div class="col" style="flex:1;gap:22px">
+    ${eb("Финал")}
+    <h1 class="t1" style="font-size:110px"><span class="glitch glow" data-t="СПАСИБО!">СПАСИБО!</span></h1>
+    ${S_(1, `<div class="card" style="max-width:820px"><div class="mono holo">ЭПИЛОГ</div><div style="font-size:25px;line-height:1.45;margin-top:8px">Бахтияр-ака пересчитал: переехал из ТЦ в махаллю → FC 6 млн → ТБУ упала до <b class="gold">1 500 самс в месяц (50 в день)</b>. Сейчас у него 2 точки и очередь до угла 🥟🥟</div></div>`)}
+    ${S_(2, `<div class="row" style="gap:16px;flex-wrap:wrap"><span class="tag">❓ Вопросы?</span><span class="tag">🎤 ${esc(CFG.AUTHOR)}</span><span class="tag">👥 ${esc(CFG.GROUP)}</span></div>`)}
+   </div>
+   <div style="width:560px"></div>
+  </div>`
+};
+
+/* =========================================================================
+   8) ХОСТ: отрисовка и живые обновления
+   ========================================================================= */
+function stepApply(){
+  document.querySelectorAll("#slideHost [data-s]").forEach(el => el.classList.toggle("on", +el.dataset.s <= S.step));
+}
+function renderHost(force){
+  const s = SLIDES[S.slide];
+  if (force || lastRendered !== S.slide) {
+    const html = s.quiz ? renderQuiz(s) : R[s.id]();
+    $("#slideHost").innerHTML = `<div class="slide enter">${html}</div>`;
+    lastRendered = S.slide; SND.whoosh(); $("#bubbles").hidden = s.id !== "open";
+    holoMode(s.holo || "hide");
+    afterRender(s);
+  }
+  stepApply(); liveUpdate();
+  $("#hMeta").innerHTML = `${String(S.slide+1).padStart(2,"0")} / ${SLIDES.length} · ${esc(s.nm)} · ${NET.mode==="mqtt" ? (NET.ok?'<span class="live"><span class="dot"></span>LIVE</span>':'<span class="demo">подключение…</span>') : '<span class="demo">ЛОКАЛЬНО</span>'}`;
+  $("#prog").style.width = ((S.slide+1)/SLIDES.length*100)+"%";
+  const nb = $("#bNext");
+  nb.textContent = s.quiz ? (S.sub==="" ? "Запустить вопрос ▶" : S.sub==="q" ? "Показать ответ ▶" : "Далее ▶") : (S.slide===SLIDES.length-1 && S.step>=s.steps ? "Конец" : "Далее ▶");
+}
+function afterRender(s){
+  if (s.id === "open") { drawQR($("#bigqrSlot"), 230); }
+  if (s.id === "chart") bindChart();
+  if (s.id === "cm") startBarrel();
+}
+function liveUpdate(){
+  const s = SLIDES[S.slide];
+  $("#pcount").textContent = Object.keys(PL).length;
+  if (s.id === "open") { const c=$("#cntBig"); if (c) c.textContent = Object.keys(PL).length; }
+  if (s.id === "story" && S.step >= 3) { const el=$("#lossCnt"); if (el && !el.dataset.done) { el.dataset.done=1; countTo(el, -36e6, 1600, v => fmt(v)+" сум"); SND.boom(); $("#bakh").innerHTML = bakhtiyar(300,"sad"); } }
+  if (s.id === "poll") updPoll();
+  if (s.quiz) updQuiz(s);
+  if (s.id === "whatif") updWhatIf();
+  if (s.id === "gsetup") updGSetup();
+  if (s.id === "gevents") updGEvents();
+  if (s.id === "gresults") updGResults();
+  if (s.id === "insight") updInsight();
+  if (s.id === "final") updFinal();
+}
+function countTo(el, to, ms, f){ const t0=performance.now(); (function k(t){ const p=clamp((t-t0)/ms,0,1), e=1-Math.pow(1-p,3); el.textContent=f(to*e); if(p<1) requestAnimationFrame(k); })(t0); }
+
+/* --- опрос --- */
+function updPoll(){
+  const box = $("#pollBars"); if (!box) return;
+  const c = POLL.o.map(()=>0); Object.values(POLLV).forEach(v => { if (c[v] != null) c[v]++; });
+  const tot = c.reduce((a,b)=>a+b,0)||1, mx = Math.max(...c,1);
+  if (!box.children.length) box.innerHTML = POLL.o.map((o,i)=>`<div class="row" style="align-items:center;gap:16px;font-size:24px"><span style="width:420px">${o}</span><span style="flex:1;height:44px;border-radius:12px;background:rgba(255,255,255,.05);overflow:hidden"><i data-b="${i}" style="display:block;height:100%;width:0;background:linear-gradient(90deg,var(--holo),var(--mag));box-shadow:0 0 18px rgba(79,243,255,.5);transition:width .8s cubic-bezier(.2,1.3,.4,1)"></i></span><b class="num" data-c="${i}" style="width:110px;text-align:right">0</b></div>`).join("");
+  c.forEach((v,i)=>{ box.querySelector(`[data-b="${i}"]`).style.width=(v/mx*100)+"%"; box.querySelector(`[data-c="${i}"]`).textContent = v+" · "+Math.round(v/tot*100)+"%"; });
+}
+
+/* --- викторина --- */
+function renderQuiz(s){
+  const q = QUIZ[s.quiz]; const n = Object.keys(QUIZ).indexOf(s.quiz)+1;
+  return `${eb(`Вопрос ${n} из 5 · отвечайте с телефона`)}
+   <h2 class="t2" style="font-size:46px;max-width:1240px">${q.q}</h2>
+   <div class="timer" id="qTimer"></div>
+   <div class="answered" id="qAns" style="margin-top:14px"></div>
+   <div class="qopts" id="qOpts">${q.o.map((o,i)=>`<div class="qopt q${LETTERS[i]}" data-i="${i}"><i class="fill"></i><span class="L">${LETTERS[i]}</span><span style="position:relative">${o}</span><span class="cnt" style="position:relative"></span></div>`).join("")}</div>
+   <div id="qExp" style="margin-top:16px;min-height:60px"></div>`;
+}
+function updQuiz(s){
+  const q = QUIZ[s.quiz], A = ANS[s.quiz]||{}; const n = Object.keys(A).length, np = Object.keys(PL).length;
+  const ans = $("#qAns"); if (!ans) return;
+  const opts = [...document.querySelectorAll("#qOpts .qopt")];
+  if (S.sub === "") { ans.textContent = "Приготовьтесь… ведущий запустит таймер"; opts.forEach(o=>o.style.opacity=.35); $("#qTimer").innerHTML=""; return; }
+  opts.forEach(o=>o.style.opacity="");
+  ans.textContent = `Ответили: ${n} из ${np}`;
+  if (S.sub === "q") return;
+  // результат
+  const cnt = q.o.map(()=>0); Object.values(A).forEach(a => { if (cnt[a.c]!=null) cnt[a.c]++; }); const mx = Math.max(...cnt,1);
+  opts.forEach((o,i)=>{ o.classList.toggle("right", i===q.a); o.classList.toggle("dim", i!==q.a); o.querySelector(".cnt").textContent = cnt[i]; o.querySelector(".fill").style.width = (cnt[i]/mx*100)+"%"; });
+  $("#qTimer").innerHTML = "";
+  const sc = quizScore(s.quiz); const top = Object.entries(sc).filter(x=>x[1].ok).sort((a,b)=>b[1].pts-a[1].pts).slice(0,5);
+  $("#qExp").innerHTML = `<div class="joke" style="font-size:22px">✅ ${q.x}</div>${top.length?`<div class="top5">${top.map(([pid,v],i)=>`<span class="p">${i===0?"⚡":""}${PL[pid]?.av||""} ${esc(PL[pid]?.n||"?")} <span class="gold num">+${v.pts}</span></span>`).join("")}</div>`:""}`;
+}
+function ring(el, left, total){
+  if (!el) return; const r=56, c=2*Math.PI*r, p=clamp(left/total,0,1);
+  el.innerHTML = `<svg width="130" height="130"><circle cx="65" cy="65" r="${r}" stroke="rgba(255,255,255,.1)" stroke-width="10" fill="none"/><circle cx="65" cy="65" r="${r}" stroke="${p<.3?'#ff4d63':'#4ff3ff'}" stroke-width="10" fill="none" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-p)}" stroke-linecap="round" style="transition:stroke-dashoffset .25s linear"/></svg><div class="tv">${Math.ceil(left)}</div>`;
+}
+function startQuizClock(){
+  clearInterval(quizTimer); let lastSec = -1;
+  quizTimer = setInterval(() => {
+    const s = SLIDES[S.slide]; if (!s.quiz || S.sub !== "q") { clearInterval(quizTimer); return; }
+    const left = CFG.QUIZ_SEC - (Date.now()-S.t0)/1000;
+    ring($("#qTimer"), left, CFG.QUIZ_SEC);
+    const sec = Math.ceil(left); if (sec !== lastSec && sec <= 5 && sec > 0) SND.tick(); lastSec = sec;
+    const n = Object.keys(ANS[s.quiz]||{}).length, np = Object.keys(PL).length;
+    if (left <= 0 || (np > 0 && n >= np)) { clearInterval(quizTimer); S.sub = "r"; pubState(); renderHost(); pubResults(); SND.right(); }
+  }, 200);
+}
+
+/* --- интерактивный график --- */
+function bindChart(){
+  const up = () => { const P=+$("#sP").value, V=+$("#sV").value, F=+$("#sF").value;
+    $("#vP").textContent=fmt(P); $("#vV").textContent=fmt(V); $("#vF").textContent=mln(F);
+    $("#chartBox").innerHTML = bepChart(P,V,F,{qMax:8000});
+    const b = P>V ? Math.ceil(F/(P-V)) : Infinity;
+    $("#vB").textContent = isFinite(b) ? fmt(b) : "∞"; $("#vBd").textContent = isFinite(b) ? `самс в месяц · ${fmt(Math.ceil(b/30))} в день` : "цена ниже переменных — прибыли не будет никогда 💀";
+    SND.tick(); };
+  ["sP","sV","sF"].forEach(id => $("#"+id).addEventListener("input", up));
+  $("#chartBox").innerHTML = bepChart(8000,4000,12e6,{qMax:8000});
+}
+function updWhatIf(){
+  const sc = [[8000,4000,12e6],[9000,4000,12e6],[8000,5000,12e6],[8000,4000,24e6]][S.step] || [8000,4000,12e6];
+  const box = $("#wiChart"); if (box && box.dataset.k !== String(S.step)) { box.dataset.k = S.step; box.innerHTML = bepChart(sc[0],sc[1],sc[2],{w:820,h:440,qMax:7000}); }
+}
+/* --- бочка маржи --- */
+function startBarrel(){
+  let filled = 0; const box = $("#coins");
+  const tick = () => {
+    if (!$("#barrel")) return;
+    const c = document.createElement("div"); c.textContent = "🪙"; c.style.cssText = `position:absolute;left:${170+Math.random()*80}px;top:0;font-size:34px;transition:transform 1s cubic-bezier(.5,0,.8,.4),opacity 1s`;
+    box.appendChild(c); requestAnimationFrame(()=>{ c.style.transform = `translateY(${380}px)`; c.style.opacity = 0; });
+    setTimeout(()=>c.remove(), 1100);
+    filled = Math.min(12e6, filled + 4000*60);
+    $("#barrel").style.height = (filled/12e6*100)+"%"; $("#barrelT").textContent = filled >= 12e6 ? "ПОЛНАЯ! дальше — прибыль 💰" : `${mln(filled)} / 12 млн`;
+    if (filled >= 12e6) { SND.coin(); return; }
+    setTimeout(tick, 120);
+  };
+  setTimeout(tick, 600);
+}
+
+/* --- игра: настройка --- */
+function updGSetup(){
+  const box = $("#gWall"); if (!box) return;
+  const ready = players().filter(p => GAME[p.id]);
+  box.innerHTML = players().map(p => { const g = GAME[p.id]; return `<span class="tag" style="font-size:20px;${g?'border-color:var(--gold);color:var(--ink)':'opacity:.4'}">${p.av} ${esc(p.n)} ${g?LOCS[g.loc].ic+" "+fmt(g.price):"…"}</span>`; }).join("") || `<div class="mu" style="font-size:24px">Ждём решений… (кнопка 🤖+10 добавит ботов для репетиции)</div>`;
+  const by = {mahalla:0, metro:0, mall:0}; ready.forEach(p => by[GAME[p.id].loc]++);
+  const avg = ready.length ? ready.reduce((a,p)=>a+(+GAME[p.id].price),0)/ready.length : 0;
+  $("#gStats").innerHTML = `<div class="card"><div class="mono mu">ГОТОВЫ</div><div class="big glowG num">${ready.length} / ${players().length}</div></div>
+   ${Object.entries(LOCS).map(([k,l])=>`<div class="card" style="padding:14px 20px;display:flex;justify-content:space-between;font-size:24px"><span>${l.ic} ${l.nm}</span><b class="num">${by[k]}</b></div>`).join("")}
+   <div class="card" style="padding:14px 20px"><div class="mono mu">СРЕДНЯЯ ЦЕНА</div><div class="t3 num">${avg?fmt(avg)+" сум":"—"}</div></div>`;
+  if (!S.lock) startGameClock(); else ring($("#gTimer"), 0, CFG.GAME_SEC);
+}
+function startGameClock(){
+  clearInterval(gameTimer);
+  gameTimer = setInterval(() => {
+    if (SLIDES[S.slide].id !== "gsetup") { clearInterval(gameTimer); return; }
+    const left = CFG.GAME_SEC - (Date.now()-S.t0)/1000; ring($("#gTimer"), left, CFG.GAME_SEC);
+    if (left <= 0 && !S.lock) { S.lock = true; pubState(); SND.boom(); clearInterval(gameTimer); renderHost(); }
+  }, 250);
+}
+/* --- игра: события --- */
+function lbHTML(list, max=8){
+  return list.slice(0,max).map((x,i)=>`<div class="lbr" style="animation:popIn .5s ${i*.05}s both"><span class="r">${i+1}</span><span>${x.av} ${esc(x.n)}</span><span class="mu">${LOCS[x.r.loc].ic} ${fmt(x.r.P)}</span><span class="v ${x.r.profit>=0?'ok':'bad'}">${x.r.profit>=0?'+':''}${mln(x.r.profit)}</span></div>`).join("") || `<div class="mu">Нет решений</div>`;
+}
+function updGEvents(){
+  const box = $("#evLB"); if (!box) return;
+  $("#evN").textContent = S.step;
+  box.innerHTML = lbHTML(gameRanking(S.step), 9);
+}
+function updGResults(){
+  const gr = gameRanking(6); const box = $("#grPodium"); if (!box) return;
+  box.innerHTML = podium(gr.slice(0,3).map(x=>({n:x.n, av:x.av, v:(x.r.profit>=0?"+":"")+mln(x.r.profit)})), .7) + `<div class="lb" style="margin-top:22px">${lbHTML(gr.slice(3),4).replace(/<span class="r">(\d+)/g,(m,d)=>`<span class="r">${+d+3}`)}</div>`;
+  const plus = gr.filter(x=>x.r.profit>0).length, avgP = gr.length ? gr.reduce((a,x)=>a+x.r.P,0)/gr.length : 0;
+  const byL = {}; gr.forEach(x=>{ (byL[x.r.loc] ||= []).push(x.r.profit); });
+  const bestL = Object.entries(byL).map(([k,v])=>[k, v.reduce((a,b)=>a+b,0)/v.length]).sort((a,b)=>b[1]-a[1])[0];
+  $("#grStats").innerHTML = `<div class="card"><div class="mono mu">В ПЛЮСЕ</div><div class="big ok num">${plus} / ${gr.length}</div></div>
+   <div class="card"><div class="mono mu">СРЕДНЯЯ ЦЕНА</div><div class="t3 num">${avgP?fmt(avgP):"—"} сум</div></div>
+   <div class="card"><div class="mono mu">ЛУЧШЕЕ МЕСТО В СРЕДНЕМ</div><div class="t3">${bestL?LOCS[bestL[0]].ic+" "+LOCS[bestL[0]].nm+" · "+mln(bestL[1]):"—"}</div></div>
+   ${S_(1, `<div class="joke" style="font-size:20px">Те, кто поставил самсу за 5 000, продали больше всех… и заработали меньше всех. Очередь ≠ прибыль.</div>`)}`;
+  stepApply();
+}
+function podium(top, k=1){
+  const order = [1,0,2], h = [300*k,380*k,240*k], col = ["#c0d4e0","#ffb547","#d58a5a"];
+  return `<div class="podium">${order.map(i => top[i] ? `<div class="pod" style="height:${h[i]}px;background:linear-gradient(180deg,${col[i]}55,${col[i]}11);border:2px solid ${col[i]};animation-delay:${[.4,.9,0][i]}s"><div class="av">${top[i].av}</div><div class="nm">${esc(top[i].n)}</div><div class="pt">${top[i].v}</div><div class="pl" style="color:${col[i]}">${i+1}</div></div>` : "").join("")}</div>`;
+}
+/* --- разбор игры --- */
+function updInsight(){
+  const box = $("#insBox"); if (!box || box.dataset.done) return; box.dataset.done = 1;
+  const gr = gameRanking(6); const w = gr[0];
+  const opt = Object.keys(LOCS).map(k => ({k, ...bestPrice(k, 6)})).sort((a,b)=>b.pr-a.pr);
+  const cheap = gr.filter(x=>x.r.P<=6000), lossMall = gr.filter(x=>x.r.loc==="mall" && x.r.profit<0).length;
+  const items = [
+    w ? `🏆 <b>${esc(w.n)}</b> выбрал(а) ${LOCS[w.r.loc].ic} ${LOCS[w.r.loc].nm} и цену <b class="gold">${fmt(w.r.P)}</b>: продал(а) <b>${fmt(w.r.q)}</b> самс при ТБУ <b>${fmt(w.r.bep)}</b> → прибыль <b class="ok">${mln(w.r.profit)}</b>.` : "🏆 Победителя нет — никто не открылся 🙃",
+    `🎯 С учётом всех событий лучшая цена была: ${opt.map(o=>`${LOCS[o.k].ic} <b class="gold">${fmt(o.p)}</b>`).join(" · ")}. Ниже — теряете маржу, выше — теряете покупателей.`,
+    `🏬 Дорогое место = высокая ТБУ. Одно событие с арендой — и ${lossMall ? `<b class="bad">${lossMall}</b> самсахон в ТЦ ушли в минус` : "запас прочности тает на глазах"}.${cheap.length?` А «самса за 5–6 тысяч» дала очередь, но почти без прибыли.`:""}`
+  ];
+  box.innerHTML = items.map((t,i)=>S_(i+1, `<div class="card" style="font-size:27px;line-height:1.45">${t}</div>`)).join("");
+  stepApply();
+}
+/* --- финал --- */
+function updFinal(){
+  const T = totals(); const list = players().map(p=>({...p, t:T[p.id]?.total||0})).sort((a,b)=>b.t-a.t);
+  const box = $("#finPodium"); if (!box) return;
+  if (!box.dataset.done) { box.dataset.done = 1; box.innerHTML = podium(list.slice(0,3).map(x=>({n:x.n, av:x.av, v:fmt(x.t)+" очк."})), .9); confetti(); SND.fanfare(); }
+  const rest = $("#finRest"); if (rest) rest.innerHTML = list.slice(3,15).map((x,i)=>`<span class="tag" style="font-size:19px">${i+4}. ${x.av} ${esc(x.n)} · ${fmt(x.t)}</span>`).join("");
+}
+
+/* =========================================================================
+   9) ХОСТ: управление
+   ========================================================================= */
+function hostNext(){
+  SND.init(); const s = SLIDES[S.slide];
+  if (s.quiz) {
+    if (S.sub === "") { S.sub = "q"; S.t0 = Date.now(); pubState(); renderHost(); startQuizClock(); botsAnswer(s.quiz); SND.step(); return; }
+    if (S.sub === "q") { S.sub = "r"; pubState(); renderHost(); pubResults(); SND.right(); return; }
+  }
+  if (s.id === "gsetup" && !S.lock) { S.lock = true; pubState(); renderHost(); SND.boom(); return; }
+  if (S.step < (s.steps||0)) { S.step++; pubState(); renderHost(); SND.step(); if (s.id==="gevents") { const e = EVENTS[S.step-1]; e && (e.bad ? SND.boom() : SND.coin()); pubResults(); } return; }
+  if (S.slide < SLIDES.length-1) go(S.slide+1);
+}
+function hostPrev(){
+  const s = SLIDES[S.slide];
+  if (S.step > 0) { S.step--; pubState(); renderHost(); return; }
+  if (S.slide > 0) go(S.slide-1, true);
+}
+function go(i, back){
+  S.slide = i; S.step = back ? (SLIDES[i].steps||0) : 0; S.sub = ""; S.lock = false; S.t0 = Date.now();
+  const s = SLIDES[i];
+  if (s.quiz && back) S.sub = "r";
+  if (s.id === "gsetup") { S.t0 = Date.now(); if (back) S.lock = true; botsGame(); }
+  pubState(); renderHost(); pubResults();
+}
+function hostReset(btn){
+  if (btn.dataset.sure !== "1") { btn.dataset.sure = "1"; btn.textContent = "Точно?"; setTimeout(()=>{ btn.dataset.sure=""; btn.textContent="↺"; }, 2500); return; }
+  for (const id in PL) { NET.pub("p/"+id, null); }
+  PL = {}; ANS = {}; GAME = {}; POLLV = {}; BOTS = {}; S = {slide:0, step:0, sub:"", t0:Date.now(), lock:false, v:0};
+  lastRendered = -1; pubState(); NET.pub("res", {}); renderHost(true); $("#bubbles").innerHTML = "";
+  btn.dataset.sure = ""; btn.textContent = "↺";
+}
+
+/* --- боты для репетиции --- */
+const BOTN = ["Шахзод","Мадина","Жасур","Нигора","Азиз","Севара","Бобур","Дилноза","Санжар","Камила","Отабек","Зарина","Улугбек","Феруза","Темур","Лола"];
+function addBots(){
+  for (let i=0;i<10;i++){ const id = "bot"+Math.random().toString(36).slice(2,7); BOTS[id]=1; PL[id] = {n:BOTN[(Object.keys(BOTS).length+i)%BOTN.length]+" 🤖", av:AVATARS[Math.random()*AVATARS.length|0]}; bubble(id); }
+  const s = SLIDES[S.slide]; if (s.id==="poll") Object.keys(BOTS).forEach(id=>{ if (POLLV[id]==null) POLLV[id] = [1,2,2,2,3,1,4][Math.random()*7|0]; });
+  if (s.id==="gsetup") botsGame();
+  saveHost(); renderHost(); pubResults();
+}
+function botsAnswer(key){
+  const q = QUIZ[key];
+  Object.keys(BOTS).forEach(id => setTimeout(() => {
+    if (SLIDES[S.slide].quiz !== key || S.sub !== "q") return;
+    (ANS[key] ||= {})[id] = {c: Math.random() < .65 ? q.a : Math.random()*4|0, ms: Date.now()-S.t0}; saveHost(); liveUpdate();
+  }, 1500 + Math.random()*12000));
+}
+function botsGame(){
+  const locs = Object.keys(LOCS);
+  Object.keys(BOTS).forEach(id => { if (!GAME[id]) setTimeout(() => { GAME[id] = {loc: locs[Math.random()*3|0], price: 5000 + (Math.random()*16|0)*500}; saveHost(); liveUpdate(); }, 800 + Math.random()*6000); });
+}
+
+/* --- пузырьки игроков --- */
+function bubble(id){
+  const p = PL[id]; if (!p) return; const b = $("#bubbles");
+  if (b.querySelector(`[data-id="${id}"]`)) return;
+  if (SLIDES[S.slide].id !== "open") return;
+  const el = document.createElement("div"); el.className = "bub"; el.dataset.id = id;
+  el.style.left = (880 + Math.random()*620) + "px"; el.style.top = (120 + Math.random()*560) + "px"; el.style.animationDelay = "0s," + (Math.random()*2) + "s";
+  el.innerHTML = `<span style="font-size:28px">${p.av}</span>${esc(p.n)}`; b.appendChild(el); SND.join();
+  if (b.children.length > 40) b.firstChild.remove();
+}
+
+/* --- QR --- */
+function joinURL(){ const base = /^https?:/.test(location.protocol) ? location.origin + location.pathname : "https://ВАШ-САЙТ.github.io/"; return base + "?room=" + ROOM; }
+function drawQR(el, size){
+  if (!el) return; el.innerHTML = "";
+  if (window.QRCode) new QRCode(el, {text: joinURL(), width: size, height: size, colorDark:"#000000", colorLight:"#ffffff", correctLevel: QRCode.CorrectLevel.M});
+  else el.innerHTML = `<div style="width:${size}px;color:#000;font-size:14px;word-break:break-all">${esc(joinURL())}</div>`;
+}
+function bigQR(show){
+  const m = $("#bigqr"); if (show === false || !m.hidden) { m.hidden = true; return; }
+  m.hidden = false; m.innerHTML = `<div style="text-align:center"><div class="qrbox" style="display:inline-block" id="bq"></div><div class="room glow" style="margin-top:20px">${ROOM}</div><div class="mono mu" style="font-size:20px">${esc(joinURL())}</div><div class="mu" style="margin-top:10px">нажмите Q или кликните, чтобы закрыть</div></div>`;
+  drawQR($("#bq"), 520);
+}
+
+/* --- конфетти --- */
+function confetti(){
+  const cv = $("#confetti"), c = cv.getContext("2d"); cv.width = 1600; cv.height = 900;
+  const cols = ["#4ff3ff","#ff4fd8","#ffb547","#6bff8f","#ffffff"];
+  const ps = Array.from({length:260}, () => ({x:800+(Math.random()-.5)*300, y:820, vx:(Math.random()-.5)*26, vy:-(Math.random()*22+12), r:Math.random()*6.28, vr:(Math.random()-.5)*.4, w:Math.random()*12+6, c:cols[Math.random()*5|0], l:1}));
+  (function f(){ c.clearRect(0,0,1600,900); let a=false; ps.forEach(p=>{ if (p.l<=0) return; a=true; p.x+=p.vx; p.y+=p.vy; p.vy+=.5; p.vx*=.99; p.r+=p.vr; if (p.y>920) p.l=0; c.save(); c.translate(p.x,p.y); c.rotate(p.r); c.fillStyle=p.c; c.fillRect(-p.w/2,-p.w/4,p.w,p.w/2); c.restore(); }); if (a) requestAnimationFrame(f); else c.clearRect(0,0,1600,900); })();
+}
+
+/* --- масштаб сцены --- */
+function fit(){ const k = Math.min(innerWidth/1600, innerHeight/900); $("#stage").style.transform = `translate(-50%,-50%) scale(${k})`; }
+
+/* --- голограмма (three.js) --- */
+let HOLO = null;
+function holoInit(){
+  const cv = $("#holo3d"); if (!window.THREE) { cv.style.display="none"; return; }
+  const r = new THREE.WebGLRenderer({canvas:cv, alpha:true, antialias:true}); r.setPixelRatio(Math.min(devicePixelRatio,2)); r.setSize(680,680,false);
+  const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(40,1,.1,100); cam.position.set(0,1.2,7); cam.lookAt(0,.2,0);
+  const g = new THREE.Group(); sc.add(g);
+  // самса: треугольная «пирамидка»
+  const geo = new THREE.ConeGeometry(1.7, 1.1, 3, 4); geo.rotateX(Math.PI/2); geo.scale(1,1,.55); geo.rotateX(-Math.PI/2);
+  const shape = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color:0xffb547, wireframe:true, transparent:true, opacity:.55}));
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color:0xffe2a8}));
+  const inner = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color:0xffb547, transparent:true, opacity:.12}));
+  g.add(shape, edges, inner);
+  // орбиты
+  const rings = [];
+  for (let i=0;i<3;i++){ const t = new THREE.Mesh(new THREE.TorusGeometry(2.2+i*.35, .008, 6, 120), new THREE.MeshBasicMaterial({color: i===1?0xff4fd8:0x4ff3ff, transparent:true, opacity:.6})); t.rotation.x = Math.PI/2 + (i-1)*.35; t.rotation.y = i*.6; sc.add(t); rings.push(t); }
+  // частицы
+  const pg = new THREE.BufferGeometry(), N = 600, pos = new Float32Array(N*3);
+  for (let i=0;i<N;i++){ const a=Math.random()*6.28, rr=1.2+Math.random()*2.6; pos[i*3]=Math.cos(a)*rr; pos[i*3+1]=(Math.random()-.5)*3.2; pos[i*3+2]=Math.sin(a)*rr; }
+  pg.setAttribute("position", new THREE.BufferAttribute(pos,3));
+  const pts = new THREE.Points(pg, new THREE.PointsMaterial({color:0x4ff3ff, size:.03, transparent:true, opacity:.8})); sc.add(pts);
+  // луч проектора
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.15, 2.4, 3.6, 40, 1, true), new THREE.MeshBasicMaterial({color:0x4ff3ff, transparent:true, opacity:.07, side:THREE.DoubleSide}));
+  beam.position.y = -.4; sc.add(beam);
+  const base = new THREE.Mesh(new THREE.TorusGeometry(.6,.05,8,60), new THREE.MeshBasicMaterial({color:0x4ff3ff})); base.rotation.x = Math.PI/2; base.position.y = -2.2; sc.add(base);
+  const clock = new THREE.Clock();
+  (function loop(){
+    const t = clock.getElapsedTime();
+    g.rotation.y = t*.6; g.rotation.x = Math.sin(t*.7)*.15; g.position.y = .3 + Math.sin(t*1.3)*.12;
+    shape.material.opacity = .45 + Math.sin(t*9)*.08 + (Math.random()<.02 ? -.3 : 0);
+    rings.forEach((rg,i)=> rg.rotation.z = t*(.2+i*.15)*(i%2?-1:1));
+    pts.rotation.y = -t*.12; beam.material.opacity = .05 + Math.sin(t*3)*.02;
+    r.render(sc, cam); requestAnimationFrame(loop);
+  })();
+  HOLO = r;
+}
+function holoMode(m){ const cv = $("#holo3d"); cv.className = m; }
+
+/* --- сетка-фон --- */
+function gridBG(){
+  const cv = $("#grid"), c = cv.getContext("2d"); cv.width = 1600; cv.height = 900; let t = 0;
+  (function f(){ c.clearRect(0,0,1600,900); c.strokeStyle = "rgba(79,243,255,.12)"; c.lineWidth = 1;
+    const hz = 560; for (let i=-20;i<=20;i++){ c.beginPath(); c.moveTo(800+i*40, hz); c.lineTo(800+i*260, 900); c.stroke(); }
+    for (let k=0;k<14;k++){ const y = hz + Math.pow((k + (t%1))/14, 2.2)*340; c.globalAlpha = (y-hz)/340; c.beginPath(); c.moveTo(0,y); c.lineTo(1600,y); c.stroke(); }
+    c.globalAlpha = 1; t += .006; requestAnimationFrame(f); })();
+}
+
+/* --- запуск хоста --- */
+function startHost(){
+  if (!ROOM) { ROOM = String(1000 + Math.random()*9000|0); try{ history.replaceState(null, "", "?host=1&room="+ROOM); }catch(_){} }
+  const saved = store.get(hk(), null);
+  if (saved) { ({S, PL, ANS, GAME, POLLV, BOTS} = Object.assign({S, PL, ANS, GAME, POLLV, BOTS}, saved)); }
+  $("#hostWrap").hidden = false; $("#hInst").textContent = CFG.INST; $("#mroom").textContent = ROOM;
+  fit(); addEventListener("resize", fit); gridBG(); holoInit(); drawQR($("#mqr"), 46);
+  NET.start(st => { $("#netst").innerHTML = st==="live" ? '<span class="live">● онлайн</span>' : st==="local" ? '<span class="demo">● локально</span>' : '<span class="bad">● нет связи…</span>'; renderHost(); if (st==="live") { pubState(); pubResults(); } });
+  NET.on(/^p\/[^/]+$/, (t, d) => { const id = t.slice(2); if (d && d.n) { const isNew = !PL[id]; PL[id] = {n:String(d.n).slice(0,20), av:d.av||"🥟"}; if (isNew) { bubble(id); } saveHost(); liveUpdate(); if (isNew) pubResults(); } });
+  NET.on(/^a\/[^/]+\/[^/]+$/, (t, d) => { const [,pid,key] = t.split("/"); if (!d) return;
+    if (key === "poll") { POLLV[pid] = d.c; saveHost(); liveUpdate(); return; }
+    const s = SLIDES[S.slide]; if (!QUIZ[key]) return; const A = (ANS[key] ||= {});
+    if (A[pid]) return; if (!(s.quiz === key && S.sub === "q")) return;
+    A[pid] = {c: d.c|0, ms: clamp(d.ms|0, 0, CFG.QUIZ_SEC*1000)}; saveHost(); liveUpdate(); });
+  NET.on(/^g\/[^/]+$/, (t, d) => { const pid = t.slice(2); if (!d || S.lock) return; if (SLIDES[S.slide].id !== "gsetup") return; if (!LOCS[d.loc]) return; GAME[pid] = {loc:d.loc, price: clamp(Math.round((+d.price||8000)/500)*500, 5000, 15000)}; saveHost(); liveUpdate(); });
+  $("#bNext").onclick = hostNext; $("#bPrev").onclick = hostPrev; $("#bBots").onclick = () => addBots();
+  $("#bMute").onclick = () => { SND.muted = !SND.muted; $("#bMute").textContent = SND.muted ? "🔇" : "🔊"; };
+  $("#bFS").onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); };
+  $("#bReset").onclick = e => hostReset(e.currentTarget); $("#miniqr").onclick = () => bigQR(); $("#bigqr").onclick = () => bigQR(false);
+  addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT") return;
+    if (["ArrowRight","PageDown"," ","Enter"].includes(e.key)) { e.preventDefault(); hostNext(); }
+    else if (["ArrowLeft","PageUp"].includes(e.key)) { e.preventDefault(); hostPrev(); }
+    else if (e.key==="q"||e.key==="Q"||e.key==="й") bigQR();
+    else if (e.key==="m"||e.key==="ь") $("#bMute").click();
+    else if (e.key==="f"||e.key==="а") $("#bFS").click();
+  });
+  addEventListener("pointerdown", () => { const first = !SND.ctx; SND.init(); if (first && S.slide===0) SND.intro(); }, {once:false});
+  renderHost(true);
+  if (SLIDES[S.slide].quiz && S.sub === "q") startQuizClock();
+  setInterval(() => { if (NET.ok) NET.pub("st", S); }, 15000);   // подстраховка
+  if (S.slide===0) Object.keys(PL).forEach(bubble);
+}
+
+/* =========================================================================
+   10) ТЕЛЕФОН УЧАСТНИКА
+   ========================================================================= */
+const ME = { id:"", n:"", av:"", st:null, res:{}, sent:{}, gameLocal:null, qSeen:{} };
+function pk(){ return "sn-me-" + ROOM + (qs.get("tab")||""); }
+function startPhone(){
+  $("#phone").hidden = false;
+  const saved = store.get(pk(), null);
+  if (saved && saved.id) Object.assign(ME, saved); else ME.id = "u" + Math.random().toString(36).slice(2,10);
+  ME.sent = ME.sent || {};
+  NET.start(st => { ME.net = st; drawPhone(); if (st === "live" && ME.n) NET.pub("p/"+ME.id, {n:ME.n, av:ME.av}); });
+  NET.on(/^st$/, (t,d) => { if (!d) return; const prev = ME.st; ME.st = d;
+    const s = SLIDES[d.slide]; if (s && s.quiz && d.sub === "q" && !ME.qSeen[s.quiz+d.t0]) ME.qSeen[s.quiz+d.t0] = Date.now();
+    if (s && s.id === "gsetup" && !ME.qSeen["g"+d.t0]) ME.qSeen["g"+d.t0] = Date.now() - clamp(Date.now()-d.t0, 0, 3000);
+    if (!prev || prev.slide !== d.slide || prev.sub !== d.sub || prev.lock !== d.lock || prev.step !== d.step) { navigator.vibrate?.(30); drawPhone(); } });
+  NET.on(/^res$/, (t,d) => { ME.res = (d && d[ME.id]) || {}; drawPhone(); });
+  setInterval(() => { const s = ME.st && SLIDES[ME.st.slide]; if (s && ((s.quiz && ME.st.sub==="q") || s.id==="gsetup")) tickPhone(); }, 250);
+  drawPhone();
+}
+function saveMe(){ store.set(pk(), {id:ME.id, n:ME.n, av:ME.av, sent:ME.sent, gameLocal:ME.gameLocal}); }
+function phTop(){ return `<div class="ph-top"><span>САМСА<b class="gold">НОМИКА</b> · ${ROOM}</span><span>${ME.net==="live"?'<span class="ok">● онлайн</span>':ME.net==="local"?'<span class="gold">● локально</span>':'<span class="bad">● подключение…</span>'}</span></div>`; }
+function drawPhone(){
+  const P = $("#phone");
+  if (!ME.n) {
+    const av = ME.av || AVATARS[0];
+    P.innerHTML = `${phTop()}<div class="bigemoji">🥟</div><h2 class="center glow">Добро пожаловать!</h2>
+     <div class="pcard"><label class="mu" for="nm">Как вас зовут?</label><input class="pin" id="nm" maxlength="20" placeholder="Имя" autocomplete="given-name">
+     <div class="mu">Аватар</div><div class="avs">${AVATARS.map(a=>`<button type="button" data-a="${a}" class="${a===av?'on':''}">${a}</button>`).join("")}</div>
+     <button class="pbtn" id="go">Войти в игру ▶</button></div>`;
+    let pick = av;
+    P.querySelectorAll(".avs button").forEach(b => b.onclick = () => { pick = b.dataset.a; P.querySelectorAll(".avs button").forEach(x=>x.classList.toggle("on", x===b)); });
+    $("#go").onclick = () => { const n = $("#nm").value.trim(); if (!n) { $("#nm").focus(); return; } ME.n = n.slice(0,20); ME.av = pick; saveMe(); NET.pub("p/"+ME.id, {n:ME.n, av:ME.av}); drawPhone(); };
+    return;
+  }
+  const st = ME.st, R0 = ME.res || {};
+  const head = `${phTop()}<div class="row" style="align-items:center;gap:12px"><span style="font-size:38px">${ME.av}</span><div style="flex:1"><h3>${esc(ME.n)}</h3><div class="mu mono" style="font-size:12px">${R0.rank?`место ${R0.rank} из ${R0.n} · ${fmt(R0.score||0)} очков`:"очки появятся после первого вопроса"}</div></div></div>`;
+  if (!st) { P.innerHTML = head + `<div class="pcard center"><div class="bigemoji">📡</div><h3>Ждём ведущего…</h3><div class="mu">Экран презентации ещё не включён или нет связи.</div></div>`; return; }
+  const s = SLIDES[st.slide] || SLIDES[0];
+  let body = "";
+  if (s.live === "poll") {
+    const my = ME.sent["poll"];
+    body = `<div class="pcard"><h3>${POLL.q}</h3>${my!=null?`<div class="ok">Голос принят ✅ (${esc(POLL.o[my])})</div>`:""}<div class="pq">${POLL.o.map((o,i)=>`<button type="button" data-v="${i}" style="background:${i===my?'linear-gradient(135deg,var(--holo),#2bb7ff);color:#001018':'rgba(79,243,255,.08)'};border:1px solid var(--line)">${o}</button>`).join("")}</div></div>`;
+  } else if (s.quiz) {
+    const q = QUIZ[s.quiz], key = s.quiz, mine = ME.sent[key];
+    if (st.sub === "") body = `<div class="pcard center"><div class="bigemoji">🧠</div><h3>Приготовьтесь!</h3><div class="mu">Вопрос появится через секунду. Быстрый правильный ответ = больше очков.</div></div>`;
+    else if (st.sub === "q") {
+      if (mine != null) body = `<div class="pcard center"><div class="bigemoji">🔒</div><h3>Ответ принят: ${LETTERS[mine]}</h3><div class="mu">Смотрите на экран 👀</div></div>`;
+      else body = `<div class="pcard"><div class="pbar"><i id="qbar" style="width:100%"></i></div><h3>${q.q}</h3><div class="pq">${q.o.map((o,i)=>`<button type="button" class="q${LETTERS[i]}" data-c="${i}"><span class="L">${LETTERS[i]}</span>${o}</button>`).join("")}</div></div>`;
+    } else {
+      const L = R0.last; const ok = L && L.ok;
+      body = `<div class="pcard center" style="border-color:${ok?'var(--ok)':'var(--bad)'}"><div class="bigemoji">${ok?"🎉":mine==null?"⏰":"😅"}</div><h2 class="${ok?'ok':'bad'}">${ok?"Верно!":mine==null?"Время вышло":"Мимо"}</h2>${ok?`<div class="big gold" style="font-size:40px">+${L.pts}</div>`:""}<div class="mu">Правильный ответ: <b>${LETTERS[q.a]} — ${q.o[q.a]}</b></div></div>`;
+    }
+  } else if (s.id === "gsetup") {
+    const g = ME.gameLocal || {loc:"mahalla", price:8000}; const sentG = ME.sent["game"]; const locked = st.lock;
+    const calc = gameCalc(g, 0, ME.id);
+    body = `<div class="pcard"><div class="row" style="justify-content:space-between;align-items:center"><h3>🥟 Самса-Тайкун</h3><b class="mono" id="gleft"></b></div><div class="pbar"><i id="gbar" style="width:100%"></i></div>
+      ${locked?`<div class="gold">Рынок закрыт. ${sentG?"Ваше решение принято ✅":"Вы не успели 😢"}</div>`:""}
+      <div class="mu">1. Место</div>
+      <div class="ploc">${Object.entries(LOCS).map(([k,l])=>`<button type="button" data-l="${k}" class="${g.loc===k?'on':''}" ${locked?"disabled":""}><span class="ic">${l.ic}</span><span><b>${l.nm}</b><small>FC ${mln(l.fc)} · поток ${l.tr}/день</small></span></button>`).join("")}</div>
+      <div class="mu">2. Цена самсы: <b class="gold" id="pv">${fmt(g.price)}</b> сум</div>
+      <input type="range" id="pr" min="5000" max="15000" step="500" value="${g.price}" style="width:100%;accent-color:#ffb547" ${locked?"disabled":""}>
+      <div class="pstat"><div><small>ВАША ТБУ</small><b id="pb">${fmt(calc.bep)}</b> шт/мес</div><div><small>ПРОГНОЗ ПРОДАЖ</small><b id="pq">${fmt(calc.q)}</b> шт/мес</div><div style="grid-column:1/-1"><small>ПРОГНОЗ ПРИБЫЛИ (без событий)</small><b id="pp" class="${calc.profit>=0?'ok':'bad'}">${mln(calc.profit)}</b></div></div>
+      ${locked?"":`<button class="pbtn" id="gsend">${sentG?"Обновить решение ✅":"Открыть самсахону 🚀"}</button>`}</div>`;
+  } else if (s.id === "gevents" || s.id === "gresults") {
+    const G = R0.game;
+    body = G ? `<div class="pcard center"><div class="bigemoji">${G.profit>=0?"📈":"📉"}</div><div class="mu">${s.id==="gevents"?"Сейчас, после событий":"Итог месяца"}</div><div class="big ${G.profit>=0?'ok':'bad'}" style="font-size:40px">${G.profit>=0?"+":""}${mln(G.profit)}</div>
+      <div class="pstat"><div><small>МЕСТО</small><b>${G.rank} / ${G.n}</b></div><div><small>${LOCS[G.loc].ic} ЦЕНА</small><b>${fmt(G.P)}</b></div><div><small>ПРОДАНО</small><b>${fmt(G.q)}</b></div><div><small>ТБУ</small><b>${isFinite(G.bep)?fmt(G.bep):"∞"}</b></div></div>
+      ${G.fine?`<div class="bad">👮 Штраф СЭС −3 млн. Медкнижка, Карл!</div>`:""}<div class="mu">${G.q>=G.bep?"Вы прошли точку безубыточности ✅":"Не дотянули до точки безубыточности ❌"}</div></div>`
+      : `<div class="pcard center"><div class="bigemoji">👀</div><h3>Смотрите на экран</h3><div class="mu">Вы не открыли самсахону в этом раунде.</div></div>`;
+  } else if (s.id === "final" || s.id === "summary" || s.id === "close") {
+    body = `<div class="pcard center"><div class="bigemoji">${R0.rank===1?"🏆":R0.rank<=3?"🥇":"🥟"}</div><h2>${R0.rank?`Ваше место: ${R0.rank} из ${R0.n}`:"Спасибо за участие!"}</h2><div class="big gold" style="font-size:36px">${fmt(R0.score||0)} очков</div><div class="mu">Формула дня: Q = FC ÷ (P − VC)</div></div>`;
+  } else {
+    body = `<div class="pcard center"><div class="bigemoji">👀</div><h3>Смотрите на экран</h3><div class="mu">Слайд ${st.slide+1} / ${SLIDES.length}: ${esc(s.nm)}</div></div>`;
+  }
+  P.innerHTML = head + body;
+  // обработчики
+  P.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { const v = +b.dataset.v; ME.sent["poll"] = v; saveMe(); NET.pub("a/"+ME.id+"/poll", {c:v}); navigator.vibrate?.(20); drawPhone(); });
+  P.querySelectorAll("[data-c]").forEach(b => b.onclick = () => {
+    const key = s.quiz; if (ME.sent[key] != null) return; const c = +b.dataset.c;
+    const seen = ME.qSeen[key+st.t0] || Date.now(); ME.sent[key] = c; saveMe();
+    NET.pub("a/"+ME.id+"/"+key, {c, ms: Date.now()-seen}); navigator.vibrate?.(40); drawPhone(); });
+  if (s.id === "gsetup" && !st.lock) {
+    const g = ME.gameLocal || (ME.gameLocal = {loc:"mahalla", price:8000});
+    const upd = () => { const c = gameCalc(g, 0, ME.id); $("#pv").textContent = fmt(g.price); $("#pb").textContent = fmt(c.bep); $("#pq").textContent = fmt(c.q); const pp = $("#pp"); pp.textContent = mln(c.profit); pp.className = c.profit>=0?"ok":"bad"; };
+    P.querySelectorAll("[data-l]").forEach(b => b.onclick = () => { g.loc = b.dataset.l; P.querySelectorAll("[data-l]").forEach(x=>x.classList.toggle("on", x===b)); upd(); saveMe(); });
+    $("#pr").oninput = e => { g.price = +e.target.value; upd(); };
+    $("#gsend").onclick = () => { ME.sent["game"] = 1; saveMe(); NET.pub("g/"+ME.id, {loc:g.loc, price:g.price}); navigator.vibrate?.([30,40,30]); $("#gsend").textContent = "Обновить решение ✅"; };
+  }
+  tickPhone();
+}
+function tickPhone(){
+  const st = ME.st; if (!st) return; const s = SLIDES[st.slide];
+  if (s.quiz && st.sub === "q") { const seen = ME.qSeen[s.quiz+st.t0] || Date.now(); const left = CFG.QUIZ_SEC - (Date.now()-seen)/1000; const b = $("#qbar"); if (b) b.style.width = clamp(left/CFG.QUIZ_SEC*100,0,100)+"%"; }
+  if (s.id === "gsetup") { const left = CFG.GAME_SEC - (Date.now()-(ME.qSeen["g"+st.t0]||st.t0))/1000; const b = $("#gbar"), t = $("#gleft"); if (b) b.style.width = clamp(left/CFG.GAME_SEC*100,0,100)+"%"; if (t) t.textContent = st.lock ? "⛔" : Math.max(0,Math.ceil(left))+" с"; }
+}
+
+/* =========================================================================
+   11) ВХОД
+   ========================================================================= */
+if (IS_HOST) startHost();
+else if (ROOM) startPhone();
+else {
+  $("#landing").hidden = false;
+  const inPreview = location.protocol === "about:" || location.href.startsWith("about:");
+  $("#lHost").onclick = () => { if (inPreview) { $("#landing").hidden = true; startHost(); } else location.search = "?host=1"; };
+  $("#lJoin").onclick = () => { const r = $("#lRoom").value.replace(/\D/g,""); if (r.length !== 4) { $("#lRoom").focus(); return; } if (inPreview) { ROOM = r; $("#landing").hidden = true; startPhone(); } else location.search = "?room=" + r; };
+}
+</script>
+</body>
+</html>
